@@ -1,0 +1,215 @@
+---
+title: "A mini course in meta-analysis"
+date: "April 2023"
+output: 
+  beamer_presentation:
+    theme: "Boadilla"
+    colortheme: "dove"
+header-includes:
+  - \setbeameroption{hide notes}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(baggr)
+library(ggplot2) #for themes, xlim etc.
+baggr::baggr_theme_set(theme_classic(base_size = 20))
+baggr::baggr_theme_update(text = element_text(family = "mono"))
+```
+
+
+## Session contents
+
+- Introduction to meta-analysis
+- R tutorial and statistics of meta-analysis
+- Discussion of some "advanced" topics in meta-analysis
+
+
+## Meta-analysis 
+
+Meta-analysis: A statistical technique for combining results from multiple studies on a similar topic to obtain a quantitative summary estimate of the effect size.
+
+(why do it? what does "similar" mean? how to combine?)
+
+\note{
+-   Highlight that the goal of meta-analysis is to obtain a summary estimate of the effect size
+-   Emphasize that meta-analysis involves quantitative synthesis of data, allowing for a more comprehensive and precise estimate of the effect size compared to individual studies
+}
+
+## Why meta-analysis
+
+1.  Provides a more comprehensive and precise estimate of the effect size by pooling data from multiple studies.
+2.  Increases generalizability of results.
+3.  Helps to resolve inconsistencies or contradictions in individual studies.
+4.  Allows for exploration of heterogeneity and subgroup analyses.
+
+Tension between 1 and 2: can you always be more precise and more generalisable?
+
+\note{
+Meta-analysis has several advantages:
+
+-   By pooling data from multiple studies, meta-analysis provides a more comprehensive and precise estimate of the effect size, as it increases the sample size and statistical power.
+-   Meta-analysis allows for the generalization of results across studies and populations, enhancing the external validity.
+-   It can help to reconcile inconsistencies or contradictions in individual studies, by examining the overall pattern of results.
+-   Meta-analysis allows for exploration of heterogeneity, which refers to the variability or diversity of results across studies, and can help to identify sources of variation. 
+- We will return to the notion of generalizability later
+}
+
+## Conducting a meta-analysis
+
+1.  Define research question and objectives.
+2.  Conduct a systematic literature review to identify relevant studies.
+3.  Extract data from each study, including sample size, effect size estimates, and study characteristics.
+4.  Perform statistical analyses, including calculation of effect size estimates, pooling of effect sizes using appropriate statistical methods, and assessment of heterogeneity.
+5.  Interpret the results and draw conclusions.
+
+Alongside: conduct sensitivity analyses and assess publication bias.
+
+\note{
+Meta-analysis typically involves several steps:
+
+1.  Defining the research question and objectives: Clearly specifying the research question and objectives of the meta-analysis is critical for guiding the entire process.
+2.  Conducting a systematic literature review: A comprehensive search of relevant studies is conducted to identify all relevant published and unpublished studies on the topic of interest.
+3.  Extracting data from each study: Data, including sample size, effect size estimates (e.g., mean difference, odds ratio), and study characteristics (e.g., study design, population characteristics), are extracted from each study and compiled for analysis.
+4.  Performing statistical analyses: Statistical methods, such as calculation of effect size estimates, pooling of effect sizes using appropriate statistical models (fixed-effect or random-effects), and assessment of heterogeneity using statistical tests (e.g., Q statistic, I-sq statistic), are performed.
+5.  Interpreting results and drawing conclusions: The results are interpreted in the context of the research question and objectives, and conclusions are drawn based on the findings.
+6.  Conducting sensitivity analyses and assessing publication bias is done alongside
+}
+
+## Effect size
+
+- Interpretable
+- Reliable
+- Comparable
+
+No consistent definition of effect size. "Comparable" is subjective. Consider ivermectin example.
+
+Typical measures:
+- Means, proportions, correlations
+- Mean differences, risk and odds ratios, IRRs, HRs, ...
+
+## Heterogeneity: variation in effect sizes
+
+1.  Heterogeneity: The variability of effect sizes across different studies included in a meta-analysis
+2.  Sources of variation: "clinical", methodological, and statistical
+3.  Heterogeneity can impact the validity and generalizability of meta-analysis results
+4.  Statistical methods, such as the Q statistic and I^2 statistic, can be used to assess the extent of heterogeneity.
+
+## Internal and external validity
+
+Quick reminder:
+
+- Internal validity: Validity of findings within individual studies 
+- External validity: Generalizability of findings beyond the original studies 
+
+Meta-analysis relies on the assumption of internal validity, as the results within each study included are assumed to be reliable and unbiased.
+Assessing external validity is important to determine the scope in which results are applicable.
+*Choice of model depends on objective.*
+
+\note{
+Internal validity refers to the reliability and validity of the results within each study included in a meta-analysis. It is important to ensure that the individual studies are well-designed, conducted, and free from bias.
+External validity refers to the extent to which the findings from a meta-analysis can be generalized to other populations, settings, or contexts. It is important to assess the applicability and relevance of the results to the target population or real-world scenarios.
+The validity of the meta-analysis results depends on the quality and validity of the individual studies included. If the included studies have issues with internal validity, the meta-analysis results may also be compromised.
+Considering the characteristics of the included studies, patient populations, interventions, and outcomes is crucial to assess the generalizability of the meta-analysis results to other settings or populations.
+In conclusion, ensuring both internal and external validity is crucial in conducting a rigorous and reliable meta-analysis. Careful assessment of the quality, design, and relevance of the included studies is essential to draw meaningful conclusions and make valid inferences from a meta-analytic synthesis of data.
+}
+
+## Fixed-Effect Meta-Analysis
+
+1.  Definition: A meta-analysis model that assumes a single true effect size across all studies.
+2.  Assumes that any observed differences between studies are due to random error.
+3.  Typically used when there is little or no heterogeneity among studies.
+4.  Pooled effect size estimate is calculated using weighted averages of individual study effect sizes, with weights based on sample size or other factors.
+
+## Random-Effects Meta-Analysis
+
+1.  Definition: A meta-analysis model that accounts for both within-study and between-study variability in effect sizes.
+2.  Assumes that there may be multiple true effect sizes across studies, due to both random error and systematic differences.
+3.  Typically used when there is significant heterogeneity among studies.
+4.  Pooled effect size estimate is calculated using weighted averages of individual study effect sizes, with weights based on both sample size and estimated between-study variability.
+
+_This is simplified on purpose!_
+
+## Meta-regression
+
+1. Meta-regression is a statistical technique used in meta-analysis to explore the potential sources of heterogeneity among studies.
+2. Allows for the examination of how different study-level characteristics (e.g., age, gender, publication year) may influence the overall effect size estimate.
+3. Conducted using regression: effect sizes from each study are regressed against the study-level covariates
+4. Meta-regression can provide valuable insights into the potential sources of heterogeneity and help explain variability in effect sizes among studies.
+
+It's a simple technique. Applicable to both FE and RE models. Many of you know it as a mixed model.
+
+\note{
+Notes:
+-   Introduce the concept of meta-regression as a statistical technique used in meta-analysis.
+-   Explain that meta-regression is used to explore potential sources of heterogeneity, which refers to the differences among studies' effect size estimates.
+-   Mention that meta-regression allows for the examination of how study-level characteristics, such as age, gender, publication year, or other relevant covariates, may influence the overall effect size estimate in a meta-analysis.
+-   Explain that meta-regression is conducted using regression analysis, where the effect size estimates or other summary statistics from each study are regressed against the study-level covariates of interest.
+-   Emphasize that meta-regression can provide valuable insights into the potential sources of heterogeneity and help explain variability in effect sizes among studies, which can contribute to a more nuanced interpretation of meta-analysis results.
+}
+
+## Reporting meta-analysis results
+
+(put in an image here)
+
+We will examine more examples soon.
+
+\note{
+Notes: 
+1.  Definition: Forest plot is a graphical representation of the effect sizes and confidence intervals (CIs) from each study included in a meta-analysis.
+2.  Forest plots provide a visual display of the variability of effect sizes across studies.
+3.  Forest plots can also show the pooled effect size estimate and overall CI, as well as the weight or contribution of each study to the pooled estimate.
+}
+
+## Implementing meta-analyses
+
+This session is generic. However:
+
+1. R is a good tool for meta-analyses. Reasons:
+	- Meta-analyses are not computationally intensive
+	- A lot of data processing, visualisation, need for specialised ecosystem (do not code your own solutions!)
+	- Big focus on reporting to non-technical audiences
+2. General R packages: `meta`, `metafor`, `baggr`
+3. Each of them has good tutorials (look online or in `vignettes()` in R)
+
+***
+
+\tiny
+
+```{r, eval = FALSE, echo = TRUE}
+library(meta) 
+# Import data from CSV file 
+data <- read.csv("meta_data.csv") 
+# Compute effect sizes and standard errors 
+effect_size <- log(data$odds_ratio) 
+# Typical way of approximating SE(log(OR)), we will discuss this later
+se <- sqrt(1/data$a + 1/data$b + 1/data$c + 1/data$d) 
+# Create meta-analysis object 
+meta_result <- meta::metagen(effect_size, se, studlab = data$study_name) 
+# Forest plot 
+meta::forest(meta_result, xlim = c(-5, 3), xlab = "Log Odds Ratio", 
+             atransf = exp, cex = 0.8, 
+             print.tau2 = FALSE, 
+             comb.random = TRUE, 
+             comb.fixed = TRUE) 
+# Meta-regression (if applicable) 
+meta::metareg(meta_result, ~covariate1 + covariate2) 
+# Funnel plot (if applicable) 
+meta::funnel(meta_result)
+```
+
+## Conclusion to this intro
+
+Terms we introduced: 
+
+- meta-analysis, 
+- effect size, 
+- generalisability, 
+- heterogeneity, 
+- fixed effects, 
+- random effects, 
+- meta-regression, 
+- forest plot
+
+Questions?
+

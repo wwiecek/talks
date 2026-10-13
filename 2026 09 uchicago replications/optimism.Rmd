@@ -1,0 +1,896 @@
+---
+title: "A Statistical Case for (Qualified) Scientific Optimism"
+author: "Witold Więcek"
+date: "University of Chicago · September 2026"
+output:
+  beamer_presentation:
+    slide_level: 2
+    latex_engine: xelatex
+    keep_tex: true
+    includes:
+      in_header: theme_optimism.tex
+classoption: aspectratio=169
+fontsize: 11pt
+mainfont: "Lato"
+sansfont: "Lato"
+monofont: "DejaVu Sans Mono"
+---
+
+```{r setup, include=FALSE}
+# Render with render.R from this talk directory. The BEAR checkout is its
+# sibling repository.
+library(tidyverse)
+library(knitr)
+library(scales)
+library(patchwork)
+bear_root <- normalizePath("../../BEAR", mustWork = TRUE)
+talk_root <- normalizePath(".")
+opts_knit$set(root.dir = bear_root)
+withr::with_dir(bear_root, source("R/settings.R"))
+source(file.path(bear_root, "R/paper_selection.R"))
+source(file.path(bear_root, "R/helpers.R"))
+source(file.path(bear_root, "R/mix.R"))
+source(file.path(bear_root, "R/plot_mixture.R"))
+
+opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+              dev = "cairo_pdf", fig.path = file.path(talk_root, "figures/optimism-"),
+              fig.align = "center")
+bear <- readRDS(file.path(bear_root, "BEAR.rds"))
+# Website totals verified at https://witold.xyz/BEAR/ on 24 September 2026.
+# These describe the full datasets, not the subsampled combined file.
+plot_font <- "DejaVu Sans Mono"
+paper_data <- bear %>%
+  mutate(dataset = if_else(dataset %in% c("clinicaltrials", "euctr"),
+                           "ctgov_euctr", dataset),
+         z_operator = replace_na(z_operator, "=")) %>%
+  filter(dataset %in% paper_selected_datasets)
+# Same definitions as paper/table_datasets.R, recomputed from current inputs.
+corpus_table <- paper_data %>% group_by(dataset) %>%
+  summarise(study_units = n_distinct(studyid), results = n(),
+            mean_k = n() / n_distinct(studyid),
+            pct_signif = 100 * mean(abs(z) > 1.959 & z_operator != "<"),
+            .groups = "drop") %>%
+  mutate(group = factor(paper_dataset_group(dataset),
+                        levels = names(paper_dataset_groups))) %>%
+  arrange(group, desc(pct_signif))
+stopifnot(nrow(corpus_table) == 16, !anyNA(corpus_table))
+cochrane <- filter(corpus_table, dataset == "Cochrane")
+slide_labels <- c(Nuijten = "Nuijten et al.", Askarov = "Askarov et al.",
+  Metapsy = "Metapsy", ArelBundock = "Arel-Bundock et al.",
+  CostelloFox = "Costello and Fox", psymetadata = "psymetadata",
+  WWC = "What Works Clearinghouse", Cochrane = "Cochrane",
+  SCORE_claims = "SCORE claims", Chavalarias = "Chavalarias et al.",
+  BarnettWren = "Barnett and Wren", Szucs = "Szucs and Ioannidis",
+  Lang = "Lang", ctgov_euctr = "ClinicalTrials.gov + EU CTR",
+  SCORE_replications = "SCORE replications", OSC = "Open Science Collaboration")
+slide_domains <- bear_domain
+slide_domains["ctgov_euctr"] <- "clinical trials"
+slide_domains[c("SCORE_claims", "SCORE_replications")] <- "social / behavioural"
+
+# Selected real rows: repeated results within a study, and different scales.
+example_rows <- bind_rows(
+  bear %>% filter(dataset == "Cochrane", studyid == "Dwyer 2015"),
+  bear %>% filter(dataset == "Nuijten") %>% slice_head(n = 1),
+  bear %>% filter(dataset == "BarnettWren") %>% slice_head(n = 2)
+) %>% select(dataset, studyid, measure, effect_scale, b, se, z, year)
+stopifnot(nrow(example_rows) == 6)
+
+# Adapt plot_mixture_v4's histogram without evaluating a fitted model.
+# Retain paper weights, bin width and empirical handling of censored values.
+plot_histogram <- function(dataset, title = NULL, xmax = 10) {
+  dt <- paper_data %>% filter(.data$dataset == .env$dataset) %>%
+    calc_study_weights()
+  exact_z <- abs(dt$z[dt$z_operator == "="])
+  exact_z <- exact_z[!is.na(exact_z)]
+  prepared <- prepare_mixture_z(dt$z, dt$z_operator)
+  dt$z <- prepared$z
+  dt$z_operator <- prepared$operator
+  dt <- resample_inequalities_for_hist(dt, exact_z)
+  ggplot(dt, aes(x = abs(z), y = after_stat(density), weight = weights)) +
+    geom_histogram(breaks = seq(0, 25.235, by = 0.245),
+                   fill = "#377EB8", alpha = 0.30, colour = NA) +
+    geom_vline(xintercept = 1.96, linetype = "dotted",
+               colour = "#6B7280", linewidth = 0.4) +
+    coord_cartesian(xlim = c(0, xmax), ylim = c(0, 0.7), expand = FALSE) +
+    scale_x_continuous(breaks = c(0, 1.96, 4, 6, 8, 10),
+                       labels = c("0", "1.96", "4", "6", "8", "10")) +
+    labs(x = expression(abs(z)), y = "Density", title = title) +
+    theme_bw(base_size = 17, base_family = plot_font) +
+    theme(plot.title = element_text(size = 13, colour = "#174C70"),
+          panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(colour = "#E6E7E9", linewidth = 0.3),
+          panel.border = element_rect(colour = "#BFC4C8", linewidth = 0.3))
+}
+write_csv(corpus_table, file.path(talk_root, "corpus_summary.csv"))
+write_csv(example_rows, file.path(talk_root, "example_rows.csv"))
+```
+
+
+
+## AI disclaimer
+
+Some of the _presentation_ text was generated by an LLM (last night). 
+The paper is 99% an old-fashioned artisanal product. 
+
+All mistakes are LLM's.
+
+## Studying the quality of empirical science
+
+- The replication crisis refuted the intuition that a significance threshold
+  can tell us whether a study is good.
+- Even $p<0.01$ versus $p>0.2$ does not discriminate well between high and
+  low signal-to-noise ratios (SNR = effect size / SE).
+- Many people remain dismayed when results "fail to replicate", despite
+  knowing that we should not rely on a single study.
+- Can we reconcile these problems with a more positive view of
+  statistically based science?
+
+\vfill
+\slidesource{Two-sided $p$-values of 0.01 and 0.2 correspond to $|z|=2.58$
+and $1.28$. These are about equally likely at a signal-to-noise ratio of
+$(2.58+1.28)/2=1.93$, which corresponds to 49\% power.}
+
+## Ioannidis 2005: binary model of scientific findings
+
+Research findings are compared against "true relationships" and
+"no relationships" in a scientific field.
+
+\vspace{0.15cm}
+
+\begin{center}
+\begin{tabular}{l|c|c}
+ & \multicolumn{2}{c}{\textbf{Ground Truth}} \\
+ & No relationship & True relationship \\
+\hline
+Significant & False positive & True positive \\
+\hline
+Non-significant & True negative & False negative \\
+\end{tabular}
+\end{center}
+
+
+$$\begin{array}{lll}
+\text{Null studies:} & \mathrm{SNR}=0 & \mathrm{PoS}=0.05 \\
+\text{Non-null studies, e.g.:} & |\mathrm{SNR}|=2.8 & \mathrm{PoS}\approx0.80
+\end{array}$$
+
+- Low TR/NR ratio = most published findings are false = low replication rate
+
+\vfill
+\slidesource{Ioannidis (2005). \textit{Why Most Published Research Findings Are False}. PLoS Medicine 2(8): e124.}
+
+## Limitations of the $2 \times 2$ model
+
+**1. The goal is not to separate "no relationships" from "true relationships".**
+
+Effects of interest are rarely exactly zero. With finite data, it is not
+possible to distinguish effects that are zero from those that are small.
+
+\vspace{0.2cm}
+
+**2. The binary model is not a realistic representation of empirical research.**
+
+In particular, assumption of some fixed power for TR's. Researchers do not know the true 
+effect when designing a study. SNRs are on a continuum.
+
+## Two contributions of this paper
+
+**Data: Benchmarks of Empirical Accuracy in Research (BEAR)**
+
+- We make a large number of results from empirical research easily accessible.
+- We process the available data to make them ready for metascientific research,
+  with clear documentation and open-source code.
+
+\vspace{0.4cm}
+
+**Method: a model of empirical $z$-values and signal-to-noise ratios**
+
+- Extend existing models to accommodate selective reporting and truncation.
+- Estimate main metascientific characteristics of fields of research
+  (power, sign, replication).
+
+\vfill
+\slidesource{Stephens (2017), \textit{False discovery rates: a new deal}; van Zwet et al. (2021), \textit{The statistical properties of RCTs and a proposal for shrinkage}; van Zwet and Gelman (2022), \textit{A proposal for informative default priors scaled by the standard error of estimates}.}
+
+## BEAR
+
+**Benchmarks of Empirical Accuracy in Research**
+
+24 datasets · 12.5 million results · 7,476 meta-analyses
+
+- Existing meta-analyses, systematic reviews, trial registries,
+  metascience datasets and replication projects.
+    - Side note: better databases of *replications* elsewhere.
+- This paper: 16 corpora, `r comma(sum(corpus_table$results))` results
+  from `r comma(sum(corpus_table$study_units))` studies.
+- Medicine, economics, psychology, psychotherapy, ecology and evolution,
+  political science, education, and other fields.
+- We do not contribute any new data; all data collection and the vast
+  majority of processing were done by the creators of the source datasets.
+
+\vfill
+
+## Accessing BEAR
+
+**Website and documentation**  
+<https://witold.xyz/BEAR/>
+
+\vspace{0.25cm}
+
+**Download the combined data**  
+[github.com/wwiecek/BEAR/releases](https://github.com/wwiecek/BEAR/releases)
+
+Download `BEAR.rds`, then load it in R:
+
+```r
+bear <- readRDS("BEAR.rds")
+```
+
+\vspace{0.25cm}
+
+**Code and individual datasets**  
+[github.com/wwiecek/BEAR](https://github.com/wwiecek/BEAR) ·
+[github.com/wwiecek/BEAR_data](https://github.com/wwiecek/BEAR_data)
+
+\vfill
+
+## What does one observation look like?
+
+
+```{r real-rows, results='asis'}
+example_display <- example_rows %>% transmute(
+  Corpus = dataset, `Study ID` = gsub("_", "\\_", studyid, fixed = TRUE),
+  Measure = case_when(measure == "smd" ~ "SMD",
+                      !is.na(measure) ~ measure, TRUE ~ "Unspecified"),
+  Estimate = sprintf("%.3f", b), SE = sprintf("%.3f", se),
+  `$z$` = sprintf("%.2f", z), Year = year)
+cat("\\begingroup\\footnotesize\n")
+cat(kable(example_display, format = "latex", booktabs = TRUE,
+          escape = FALSE, align = "lllrrrr", linesep = ""))
+cat("\n\\endgroup\n")
+```
+
+\vspace{0.2cm}
+
+- The first three rows are **three results from one study**, Dwyer (2015).
+- A study identifier is interpreted within its corpus.
+- In most cases we have one or several estimates per study.
+- Estimates and SEs retain their BEAR scales.
+- Many datasets contain rich additional study characteristics.
+
+\vfill
+\slidesource{SMD: standardised mean difference. “Unspecified” denotes missing measure metadata. Ratio estimates and SEs are on the log scale.}
+
+## Corpora used in this paper
+
+```{r corpus-table, results='asis'}
+cat("\\begingroup\\centering\\fontsize{8}{8.3}\\selectfont\n")
+cat("\\setlength{\\tabcolsep}{4pt}\\renewcommand{\\arraystretch}{0.78}\n")
+cat("\\begin{tabular}{llrrr}\\toprule\n")
+cat("Corpus & Domain & N studies & Results/study & \\% signif. \\\\\n")
+for (g in names(paper_dataset_groups)) {
+  cat("\\midrule\\multicolumn{5}{l}{\\textit{",
+      paper_collection_group_labels[g], "}}\\\\\n", sep = "")
+  rows <- corpus_table %>% filter(group == g)
+  for (i in seq_len(nrow(rows))) {
+    d <- rows$dataset[i]
+    domain <- gsub("&", "\\\\&", slide_domains[d])
+    cat(slide_labels[d], " & ", domain, " & ", comma(rows$study_units[i]),
+        " & ", sprintf("%.1f", rows$mean_k[i]), " & ",
+        sprintf("%.0f\\%%", rows$pct_signif[i]), "\\\\\n", sep = "")
+  }
+}
+cat("\\bottomrule\\end{tabular}\\par\n\\endgroup\n")
+```
+
+\vspace{0.08cm}
+
+## Cochrane Database of Systematic Reviews
+
+:::::::::::::: {.columns}
+::: {.column width="60%"}
+
+```{r cochrane-histogram, fig.width=6.4, fig.height=4.3, out.width='100%'}
+set.seed(20260923)
+plot_histogram("Cochrane", xmax = 10) +
+  scale_x_continuous(breaks = c(0, 1.96, 5, 10),
+                     labels = c("0", "1.96", "5", "10")) +
+  theme(plot.margin = margin(6, 16, 6, 6))
+```
+
+:::
+::: {.column width="40%"}
+
+\small
+
+**`r comma(cochrane$study_units)` studies**  
+`r comma(cochrane$results)` results
+
+**`r sprintf("%.0f", cochrane$pct_signif)`\% significant**
+
+Most mass lies near zero, with a long right tail.
+
+The dotted line marks $|z|=1.96$.
+
+:::
+::::::::::::::
+
+## Distribution of absolute $z$-values across other corpora
+
+```{r other-histograms, fig.width=12, fig.height=5.4, out.width='98%'}
+set.seed(20260924)
+panel_datasets <- c("Nuijten", "Askarov", "Metapsy", "ArelBundock",
+                    "CostelloFox", "psymetadata", "WWC", "Lang", "ctgov_euctr", "Szucs")
+panels <- lapply(panel_datasets, function(d) {
+  plot_histogram(d, str_wrap(slide_labels[d], width = 16)) +
+    scale_x_continuous(breaks = c(0, 5, 10)) +
+    labs(x = NULL, y = NULL) +
+    theme(axis.text.x = element_text(size = 10),
+          axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+          plot.title = element_text(size = 13),
+          plot.margin = margin(4, 14, 4, 8))
+})
+wrap_plots(panels, ncol = 5) +
+  plot_annotation(caption = "|z|") &
+  theme(plot.caption = element_text(hjust = 0.5, size = 16, family = plot_font))
+```
+
+
+## $z$-values and signal-to-noise ratios
+
+\small
+
+For study $i$, true effect $\beta_i$ and estimate $\hat\beta_i$:
+
+$$
+z_i = \frac{\hat\beta_i}{\mathrm{SE}(\hat\beta_i)}, \qquad
+\mathrm{SNR}_i = \frac{\beta_i}{\mathrm{SE}(\hat\beta_i)}.
+$$
+
+Suppose that we have unbiased effect estimates which are normally distributed
+with known standard errors. Then
+
+$$
+z_i = \mathrm{SNR}_i + \varepsilon_i, \qquad
+\varepsilon_i \sim N(0,1),
+$$
+
+where the error is independent of the SNR.
+
+\vspace{0.2cm}
+
+For two-sided $p$-values:
+
+$$p=0.05 \Rightarrow |z|=1.96,\quad
+p=0.01 \Rightarrow |z|=2.58,\quad
+p=0.001 \Rightarrow |z|=3.29.$$
+
+
+
+
+## A model for the distribution of $z$-values
+
+Our main assumption is that the distribution of the absolute $z$-values is
+well represented by a **mixture of half-normal distributions**.
+
+Equivalently, we model signed $z$-values as a mixture of zero-mean normals:
+
+$$
+f(z\mid p,\sigma)=\sum_{i=1}^{k}p_i\,\frac{1}{\sigma_i}
+\phi\!\left(\frac{z}{\sigma_i}\right).
+$$
+
+- $\phi$ is the standard normal density.
+- $p=(p_1,\ldots,p_k)$: non-negative mixture weights that sum to unity.
+- $\sigma=(\sigma_1,\ldots,\sigma_k)$: standard deviations, at least 1
+  because every $z$-value has a standard normal noise component.
+- We use $k=4$. No need to go higher, could go lower in most cases.
+
+
+
+## From signal-to-noise ratios to $z$-values
+
+The $z$-value is equal to the SNR plus an independent standard normal error.
+
+```{r convolution, fig.width=11.5, fig.height=3, out.width='97%'}
+# Illustrative convolution, before publication selection; not an empirical fit.
+x <- seq(-7, 7, length.out = 701)
+illustration <- tibble(
+  x, `SNR` = 0.7 * dnorm(x, sd = 0.6) + 0.3 * dnorm(x, sd = 2.5),
+  `Independent error: N(0,1)` = dnorm(x),
+  `Observed z = SNR + error` =
+    0.7 * dnorm(x, sd = sqrt(0.6^2 + 1)) +
+    0.3 * dnorm(x, sd = sqrt(2.5^2 + 1))
+) %>% pivot_longer(-x, names_to = "distribution", values_to = "density")
+illustration$distribution <- factor(illustration$distribution,
+  levels = c("SNR", "Independent error: N(0,1)", "Observed z = SNR + error"))
+ggplot(illustration, aes(x, density)) +
+  geom_area(fill = "#377EB8", alpha = 0.15) +
+  geom_line(colour = "#174C70", linewidth = 0.8) +
+  facet_wrap(~ distribution, nrow = 1) +
+  scale_x_continuous(breaks = c(-6, 0, 6)) +
+  labs(x = NULL, y = "Density") +
+  theme_bw(base_size = 15, base_family = plot_font) +
+  theme(strip.background = element_blank(), panel.grid.minor = element_blank(),
+        strip.text = element_text(colour = "#174C70"))
+```
+
+
+
+
+
+## Deconvolution: the distribution of the SNRs
+
+The distribution of the $z$-values is a convolution of the distribution of
+the SNRs and the standard normal error:
+
+$$z=\mathrm{SNR}+\varepsilon,\qquad \varepsilon\sim N(0,1).$$
+
+\vspace{0.35cm}
+
+We simply **subtract 1 from the variances of the mixture components**:
+
+$$
+f_{\mathrm{SNR}}(x\mid p,\sigma)
+= f\!\left(x\mid p,\sqrt{\sigma^2-1}\right).
+$$
+
+\vspace{0.2cm}
+
+Component $i$ has variance $\sigma_i^2$ for $z$ and $\sigma_i^2-1$ for SNR.
+
+## Adjustment for selective reporting
+
+\small
+
+Following Hedges, define $\omega$ as the relative risk that a result with
+$|z|<1.96$ is observed compared to a result with $|z|\geq1.96$:
+
+$$\omega=
+\frac{\Pr(\text{result is published}\mid |z|<1.96)}
+{\Pr(\text{result is published}\mid |z|\geq1.96)}.$$
+
+The density conditional on publication becomes
+
+$$f(z\mid p,\sigma,\omega,\mathrm{pub})=
+\begin{cases}
+\omega\,f(z\mid p,\sigma)/C(p,\sigma,\omega), & |z|<1.96,\\[3pt]
+f(z\mid p,\sigma)/C(p,\sigma,\omega), & |z|\geq1.96.
+\end{cases}$$
+
+The normalising constant is
+
+$$C(p,\sigma,\omega)=\omega\Pr(|z|<1.96\mid p,\sigma)
++\Pr(|z|\geq1.96\mid p,\sigma).$$
+
+\vfill
+\slidesource{Hedges (1984, 1992). “pub” denotes conditioning on publication.}
+
+## Truncation, repeated estimates, and likelihood
+
+\small
+\setlength{\abovedisplayskip}{4pt}
+\setlength{\belowdisplayskip}{4pt}
+\setlength{\parskip}{3pt}
+
+**Reported values are sometimes truncated.**
+
+- Statements such as $p<0.05$, $p<0.01$, or $p<0.001$ give bounds on $|z|$.
+- $\tilde z$ denotes the possibly censored value; $\delta$ indicates
+  left censoring, right censoring, or no censoring.
+
+**Most datasets have multiple $z$-values per study.**
+
+- To prevent studies with many $z$-values from dominating the likelihood,
+  weight observations by the inverse number of $z$-values per study.
+
+For $n$ observations, we maximise the weighted log likelihood
+
+$$\ell(p,\sigma,\omega)=\sum_{j=1}^{n}w_j
+\log f(\tilde z_j,\delta_j\mid p,\sigma,\omega,\mathrm{pub}),$$
+
+Here $w_j$ is the weight of observation $j$.
+
+\vfill
+
+## Quantities implied by the distribution of the SNRs
+
+\small
+
+**Probability of significance**
+
+$$\mathrm{PoS}(\mathrm{SNR})=\mathrm{PoS}(|\mathrm{SNR}|)
+=\Pr(|z|\geq1.96\mid\mathrm{SNR}).$$
+
+Averaging over the distribution of the SNR gives the **assurance**,
+$\overline{\mathrm{PoS}}$.
+
+**Conditional probability of the correct sign**
+
+$$\Pr(z\cdot\mathrm{SNR}>0\mid |z|).$$
+
+**Conditional probability of "successful replication"**
+
+$$\Pr(z_{\mathrm{repl}}\cdot z>0\text{ and }|z_{\mathrm{repl}}|>1.96\mid |z|).$$
+
+We imagine a second study with **exactly the same SNR**:
+$z_{\mathrm{repl}}=\mathrm{SNR}+\varepsilon_{\mathrm{repl}}$, with independent
+$\varepsilon_{\mathrm{repl}}\sim N(0,1)$.
+
+## Conditional inference for SNR given $z$
+
+\small
+
+The marginal distribution of $z$, together with the conditional distribution
+of $z$ given SNR, determines the joint distribution.
+
+The conditional distribution of **SNR given $z$** is a mixture of normals:
+
+$$\mathrm{SNR}\mid z\ \sim\ \sum_{i=1}^{k}q_i(z)\,
+N\!\left(\mu_i(z),\tau_i^2\right),$$
+
+with weights, means, and variances
+
+$$q_i(z)=\frac{p_i\phi(z/\sigma_i)/\sigma_i}{f(z\mid p,\sigma)},\qquad
+\mu_i(z)=\frac{\sigma_i^2-1}{\sigma_i^2}\,z,\qquad
+\tau_i^2=\frac{\sigma_i^2-1}{\sigma_i^2}.$$
+
+For an exact replication, $z_{\mathrm{repl}}\mid z$ has the same weights
+and means, with variances **$\tau_i^2+1$**.
+
+\vfill
+
+## Model fit across corpora
+
+```{r fitted-setup, include=FALSE}
+source(file.path(bear_root, "R/fit_density_calc.R"))
+mixtures <- setNames(lapply(c(panel_datasets, "Cochrane"), function(d) {
+  readRDS(file.path(bear_root, "mixtures", paste0(d, ".rds")))
+}), c(panel_datasets, "Cochrane"))
+
+# Add the saved paper fit to the existing histogram; no model is refitted.
+plot_fitted_histogram <- function(d, title = slide_labels[d]) {
+  curves <- fit_density_calc_abs(mixtures[[d]])$df
+  plot_histogram(d, title) +
+    geom_line(data = curves, aes(x = x, y = fz), inherit.aes = FALSE,
+              colour = "#174C70", linewidth = 0.7) +
+    geom_line(data = curves, aes(x = x, y = aligned_corrected_fz),
+              inherit.aes = FALSE, colour = "#555B61", linewidth = 0.6,
+              linetype = "22")
+}
+```
+
+```{r fitted-panels, fig.width=12, fig.height=5.4, out.width='98%'}
+# Same seed and corpus order reproduce the empirical panels' exact histogram layers.
+set.seed(20260924)
+fitted_panels <- lapply(panel_datasets, function(d) {
+  plot_fitted_histogram(d, str_wrap(slide_labels[d], width = 16)) +
+    scale_x_continuous(breaks = c(0, 5, 10)) +
+    labs(x = NULL, y = NULL) +
+    theme(axis.text.x = element_text(size = 10),
+          axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+          plot.title = element_text(size = 13),
+          plot.margin = margin(4, 14, 4, 8))
+})
+wrap_plots(fitted_panels, ncol = 5) +
+  plot_annotation(caption = "|z|") &
+  theme(plot.caption = element_text(hjust = 0.5, size = 16, family = plot_font))
+```
+
+\slidesource{Solid: fitted density conditional on publication. Dashed: corrected density, rescaled above $|z|=1.96$.}
+
+## Decreasing distributions of absolute $z$-values
+
+```{r decreasing-panels, fig.width=11.5, fig.height=3, out.width='97%'}
+# Reuse the trial-phase data and fits used in the paper's subset figure.
+subgroup_fits <- readRDS(file.path(bear_root, "explore/subgroups/fits.rds"))
+phase_panels <- subgroup_fits$manifest %>%
+  filter(category == "Phase", subgroup %in% c("phase1", "phase2", "phase3")) %>%
+  arrange(subgroup)
+stopifnot(nrow(phase_panels) == 3)
+set.seed(20260925)
+wrap_plots(lapply(seq_len(nrow(phase_panels)), function(i) {
+  key <- phase_panels$fit_name[i]
+  plot_mixture_v4(subgroup_fits$fits[[key]], subgroup_fits$dfs[[key]],
+    nm = paste("ClinicalTrials.gov — Phase", i), col = "#174C70",
+    ymax = 0.4, annotate = "none", show_corrected = TRUE,
+    align_corrected_above_threshold = TRUE, corrected_colour = "#555B61") +
+    scale_x_continuous(breaks = c(0, 5, 10)) +
+    labs(x = "|z|", y = "Density") +
+    theme_bw(base_size = 15, base_family = plot_font) +
+    theme(plot.title = element_text(size = 13, colour = "#174C70"),
+          panel.grid.minor = element_blank())
+}), nrow = 1)
+```
+
+- Mixtures of half-normal densities are necessarily decreasing. But data support 
+this strongly.
+- The main difference between the distributions of the $z$-values is their
+  **widths**. A wider distribution of $z$-values implies a wider distribution
+  of SNRs.
+- Since PoS is an increasing function of the absolute SNR, a higher
+  proportion of results will reach statistical significance.
+
+
+## What does the selection parameter tell us?
+
+```{r results-setup, include=FALSE}
+source(file.path(bear_root, "R/psr.R"))
+
+# Reuse the displayed paper tables, rather than regenerate their estimates.
+table_keys <- c(
+  "Nuijten et al" = "Nuijten", "Askarov et al" = "Askarov",
+  "Metapsy" = "Metapsy", "Arel-Bundock et al" = "ArelBundock",
+  "Costello and Fox" = "CostelloFox", "psymetadata" = "psymetadata",
+  "What Works Clearing." = "WWC", "Cochrane" = "Cochrane",
+  "Chavalarias et al" = "Chavalarias", "SCORE, all claims" = "SCORE_claims",
+  "Lang" = "Lang", "Szucs and Ioannidis" = "Szucs",
+  "clinicaltrials.gov + EU CTR" = "ctgov_euctr",
+  "Barnett and Wren" = "BarnettWren", "SCORE replications" = "SCORE_replications",
+  "OpenSciCollab replications" = "OSC")
+# Numeric table rows have a corpus name followed by the estimate of omega.
+read_paper_table <- function(path, columns) {
+  rows <- grep(" & [0-9]", readLines(path), value = TRUE)
+  read_delim(paste(rows, collapse = "\n"), delim = "&", trim_ws = TRUE,
+             col_names = c("corpus", columns), col_types = cols(.default = "c")) %>%
+    mutate(across(all_of(columns), parse_number),
+           dataset = unname(table_keys[corpus]))
+}
+results <- read_paper_table(file.path(bear_root, "paper/tables/table2.tex"),
+  c("omega", "signif", "assurance", "replication", "repl_196", "repl_signif",
+    "sign", "sign_196", "sign_signif")) %>%
+  left_join(read_paper_table(file.path(bear_root, "paper/tables/table3.tex"),
+    c("omega", "signif", "assurance", "pos80", "pos80_196", "pos80_signif")) %>%
+      select(dataset, pos80), by = "dataset") %>%
+  mutate(group = paper_dataset_group(dataset),
+         label = unname(slide_labels[dataset]))
+stopifnot(nrow(results) == 16, !anyNA(results))
+selection_results <- results %>%
+  filter(!dataset %in% c("SCORE_replications", "OSC"))
+mixtures <- setNames(lapply(paper_selected_datasets, function(d) {
+  readRDS(file.path(bear_root, "mixtures", paste0(d, ".rds")))
+}), paper_selected_datasets)
+
+# Format ranges from the current tables at their published precision.
+percent_range <- function(x) {
+  paste0(round(100 * min(x)), "–", round(100 * max(x)), "%")
+}
+results_theme <- theme_bw(base_size = 15, base_family = plot_font) +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(colour = "#E6E7E9", linewidth = 0.3),
+        legend.title = element_blank(), legend.position = "top",
+        plot.margin = margin(6, 15, 6, 6))
+```
+
+:::::::::::::: {.columns}
+::: {.column width="49%"}
+
+```{r selection-estimates, fig.width=5.5, fig.height=4.4, out.width='100%'}
+selection_results %>% mutate(label = factor(label, levels = rev(label))) %>%
+  ggplot(aes(omega, label)) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "#999999") +
+  geom_point(colour = "#174C70", size = 2) +
+  scale_x_continuous(limits = c(0, 1.1), breaks = c(0, 0.5, 1)) +
+  labs(x = expression(hat(omega)), y = NULL) + results_theme +
+  theme(axis.text.y = element_text(size = 13))
+```
+
+:::
+::: {.column width="51%"}
+
+\small
+
+$\hat\omega$ ranges from **`r min(selection_results$omega)` to `r max(selection_results$omega)`**.
+
+- Many studies have multiple outcomes; we do not know which drive
+  publication decisions.
+- Hedges' single-parameter model is useful for **adjusting** the distributions
+  of $z$-statistics.
+- It seems too limited for reliably quantifying and comparing the extent of
+  publication bias across fields.
+
+:::
+::::::::::::::
+
+\slidesource{Paper Table 2. Replication datasets removed ($\omega=1$ under no selection).}
+
+## Distribution of the probability of significance
+
+:::::::::::::: {.columns}
+::: {.column width="50%"}
+
+```{r pos-survival, fig.width=6.3, fig.height=4.3, out.width='100%'}
+# Same simulation and survival-curve construction as plot_figure_pos_gap.R.
+set.seed(42)
+power_curves <- map_dfr(names(mixtures), function(d) {
+  fit <- mixtures[[d]]
+  snr <- rmix(1e5, p = fit$p, m = fit$m, s = fit$sigma_SNR)
+  power <- pnorm(-1.96, snr, 1) + 1 - pnorm(1.96, snr, 1)
+  value <- seq(0.05, 1, length.out = 250)
+  tibble(dataset = d, value, survival = 1 - ecdf(power)(value))
+})
+ggplot(power_curves, aes(value, survival, group = dataset)) +
+  geom_vline(xintercept = 0.8, linetype = "dashed", colour = "#777777") +
+  geom_line(colour = "#174C70", alpha = 0.55, linewidth = 0.6) +
+  scale_x_continuous(limits = c(0.05, 1), breaks = c(0.05, 0.5, 0.8, 1),
+                     expand = expansion(mult = 0)) +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.25),
+                     expand = expansion(mult = 0)) +
+  labs(x = "PoS", y = "Proportion of studies achieving") + results_theme
+```
+
+:::
+::: {.column width="50%"}
+
+\small
+
+\vspace{0.25cm}
+
+Estimated assurance: **`r percent_range(results$assurance)`**.
+
+Only **`r percent_range(results$pos80)`** of studies achieve 80% PoS.
+
+\vspace{0.25cm}
+
+This does not tell us if studies are too small! PoS is "power",
+but what matters is power to detect a meaningful effect.
+
+:::
+::::::::::::::
+
+\slidesource{Each curve represents a corpus. Paper Tables 2–3; adapted from the PoS figure. Senn (2002).}
+
+## Correct sign versus successful replication
+
+:::::::::::::: {.columns align="top"}
+::: {.column width="60%"}
+
+```{r sign-replication, fig.width=6.4, fig.height=4.9, out.width='100%', fig.align='default'}
+z_grid <- sort(unique(c(seq(0, 5, by = 0.05), 1.96)))
+conditional_curves <- map_dfr(names(mixtures), function(d) {
+  fit <- mixtures[[d]]
+  pr <- gap_vec(z_grid, p = fit$p, m = fit$m, s_snr = fit$sigma_SNR)
+  tibble(dataset = d, z = z_grid, `Correct sign` = pr$sgn,
+         `Successful replication` = pr$rep)
+}) %>% pivot_longer(c(`Correct sign`, `Successful replication`),
+                    names_to = "quantity", values_to = "probability")
+ggplot(conditional_curves,
+       aes(z, probability, group = interaction(dataset, quantity),
+           colour = quantity)) +
+  geom_vline(xintercept = 1.96, linetype = "dotted", colour = "#777777") +
+  geom_line(alpha = 0.65, linewidth = 0.6) +
+  scale_colour_manual(values = c("Correct sign" = "#174C70",
+                                 "Successful replication" = "#858B91")) +
+  scale_x_continuous(limits = c(0, 5), breaks = c(0, 1.96, 3, 4, 5),
+                     expand = expansion(mult = 0)) +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.25),
+                     expand = expansion(mult = 0)) +
+  labs(x = expression(abs(z)), y = "Conditional probability") +
+  results_theme + theme(legend.text = element_text(size = 11),
+    plot.margin = margin(0, 15, 0, 6), legend.margin = margin(0, 0, 0, 0))
+```
+
+:::
+::: {.column width="40%"}
+
+\small
+
+Unconditionally:
+
+- **`r percent_range(results$sign)`** probability of the correct sign.
+- **`r percent_range(results$replication)`** probability of "successful replication".
+
+\vspace{0.3cm}
+
+At $|z|=1.96$:
+
+- **`r percent_range(results$sign_196)`** probability of the correct sign.
+- **`r percent_range(results$repl_196)`** probability of "successful replication".
+
+:::
+::::::::::::::
+
+\slidesource{Paper Table 2 and conditional-probability figure. Replication has exactly the same SNR and independent sampling error.}
+
+## Marginal significance and the base rate of replication
+
+\small
+
+If $|z|=1.96$, the probability of "successful replication" is never much more
+than the base rate, and often even less.
+
+```{r replication-comparison, results='asis'}
+results %>% filter(dataset %in% c("Nuijten", "Askarov", "Chavalarias", "Cochrane")) %>%
+  transmute(Corpus = label,
+            `Randomly selected study` = sprintf("%.0f\\%%", 100 * replication),
+            `Conditional on $|z|=1.96$` = sprintf("%.0f\\%%", 100 * repl_196)) %>%
+  kable(format = "latex", booktabs = TRUE, escape = FALSE,
+        align = "lrr", linesep = "")
+```
+
+- This phenomenon is **not a consequence of many studies having low SNRs**
+  (low PoS).
+- If all the studies had higher SNRs, the assurance would be higher, but
+  observing $|z|=1.96$ would be even less impressive.
+
+\vfill
+\slidesource{Paper Table 2. Both columns report the probability of a significant, same-direction exact replication.}
+
+## Results summary
+
+- The estimated distributions generally track the histograms well.
+- The main difference between the distributions of the $z$-values is their
+  widths; discontinuities at $|z|=1.96$ are a feature of the selection model.
+- Estimated assurances range from **`r percent_range(results$assurance)`**;
+  **`r percent_range(results$pos80)`** of studies achieve 80% PoS.
+- For a marginally significant result, the probability of "successful
+  replication" is **`r percent_range(results$repl_196)`**.
+- The probability that the direction of the observed effect is correct is
+  **`r percent_range(results$sign_196)`**.
+
+\vfill
+\slidesource{Paper Tables 2–3. The last two statements condition on $|z|=1.96$.}
+
+## Four features of the empirical corpora
+
+\small
+
+1. **Absolute $z$-values have a decreasing density.**  
+   Studies with low SNRs are more common than those with high SNRs.
+   Research domains differ considerably in the widths of these distributions.
+
+2. **The probability of significance tends to be low.**  
+   Only `r percent_range(results$pos80)` of studies achieve 80% power.
+
+3. **Reaching statistical significance does not imply a high probability
+   of replication.**  
+   At $|z|=1.96$, the probability of successful replication is
+   `r percent_range(results$repl_196)`.
+
+4. **Statistical significance does imply that the sign is likely correct.**  
+   At $|z|=1.96$, the probability of the correct sign is
+   `r percent_range(results$sign_196)`.
+
+\vfill
+
+## Interpretation: qualified scientific optimism
+
+- Our model allows the PoS to range continuously from 0.05 to 1.
+  We observe no clear separation between "true relationships" and
+  "no relationships".
+- Empirical research often leads to true findings---in the sense of correctly
+  identifying the direction of an effect---that do not replicate in the sense
+  of achieving statistical significance in the same direction.
+- Failure to replicate should not be taken to mean that the original result
+  was a fluke or a fake.
+
+\vspace{0.25cm}
+
+**Our qualified optimism extends only to research for which we do not have
+decisive reasons to distrust.**
+
+
+## Which metascience claims survive the empirical data?
+
+\small
+
+*An opinionated summary*
+
+**Supported by this analysis**
+
+- Significant results often fail to replicate significantly.
+- Most studies have modest true PoS; only `r percent_range(results$pos80)`
+  achieve 80% power. This alone does not establish poor study planning.
+
+**Need qualification or reframing**
+
+- "Most published results are false"; some fields are bad and others
+  "gold standard".
+- Lowering the $p$-value threshold or uniformly doubling sample sizes
+  does not follow from these results.
+
+**Not answered by this paper**
+
+- How common publication bias and $p$-hacking are.
+- How much research funding should go to replication.
+

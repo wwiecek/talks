@@ -1,0 +1,424 @@
+---
+title: "A mini course in meta-analysis"
+date: "February 2026"
+author: "Witold Więcek"
+output: 
+  beamer_presentation:
+    theme: "Boadilla"
+    colortheme: "dove"
+    slide_level: 2
+header-includes:
+  - \setbeameroption{hide notes}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(baggr)
+library(ggplot2) #for themes, xlim etc.
+baggr::baggr_theme_set(theme_classic(base_size = 20))
+baggr::baggr_theme_update(text = element_text(family = "mono"))
+```
+
+
+## Meta-analysis 
+
+Meta-analysis: A statistical technique for combining results from multiple studies on a similar topic to obtain a quantitative summary estimate of the effect size.
+
+Goal: a summary estimate of the effect size (that is more efficient than individual studies)
+
+(what does "similar" mean? how to combine? why "more efficient"?)
+
+
+
+## Why meta-analysis
+
+Expanding the goal into a somewhat aspirational list:
+
+1.  Provides a more comprehensive and precise estimate of the effect size by pooling data from multiple studies.
+2.  Increases generalizability of results.
+3.  Helps to resolve inconsistencies or contradictions in individual studies.
+4.  Allows for exploration of heterogeneity, subgroup analyses, cost-benefit analyses
+
+(can you always be more precise and more generalisable?)
+
+
+
+## History
+
+- Cochran (1953): averaging means (several unbiased estimators) via inverse-variance weighting
+    - Building up from Cochran and Fisher ideas dating back to 1930s
+- 1970-1990: RCTs as basis of clinical decision-making and “evidence-based” medicine (Archie Cochrane)
+- Glass (1976): Primary and secondary research, meta-analysis 
+    - Coins "meta-analysis"
+    - Many estimation methods established throughout 1980s
+- Rubin (1981): Estimation in parallel experiments
+    - Bayesian hierarchical model, "random effects" (also DerSimonian and Laird, 1986)
+    - Much rapid advance only from 1990s due to computational advances allowing for MCMC
+- Exponential growth in number of meta-analyses since 1990s
+    - Cochrane Collaboration (1993) and Campbell Collaboration (2000): systematic reviews in health and beyond
+    - Guidelines for conduct of meta-analyses also start in 1990s
+
+
+
+## What is and isn't meta-analysis
+
+Basic meta-analysis model:
+
+- pairs $(b_i, se_i)$ such that $b_i \sim \mathcal{N}(\theta_i, se^2_i)$
+- true effects $\theta_i \sim \mathcal{N}(\mu, \sigma^2)$ 
+- what are $\mu$ and $\sigma$?
+
+I will say "effects" but you could say "exchangeable measurements"
+
+You can relax it in a myriad of ways:
+
+- Non-normal errors
+- Systematic differences between $\theta$'s (explained or unexplained heterogeneity)
+- Analysing individual-level data
+- Complex models (e.g. fuzzy RDD from 1000's of experiments!)
+
+
+## Conducting a meta-analysis
+
+1.  Define **research question** and objectives.
+2.  Conduct a systematic **literature review** to identify relevant studies.
+3.  **Extract data** from each study, including sample size, effect size estimates, and study characteristics.
+4.  Perform **statistical analyses** (may include preparation of individual studies before meta-analysing, to increase precision)
+5.  Assess **risk of bias** within studies and **publication bias**. 
+6.  Interpret the results, predict future impacts.
+
+_You can ~ignore 2 and 5 if you are the designer of experiments!_
+
+
+
+## Effect size
+
+Quantity we decide to pool across studies. 
+
+(Again: not necessarily "effect"---can be repeated measurement)
+
+Should be:
+
+- Interpretable (what does the parameter measure?)
+- Relevant (to the research question)
+- Statistically comparable and reliable
+
+Example measures:
+
+- Means, proportions, correlations
+- Mean differences, risk and odds ratios, IRRs, HRs, IVs
+
+
+
+## Internal and external validity
+
+Quick reminder:
+
+- Internal: within the studied sample?
+- External: when considering other samples (groups, times, locations)?
+
+
+
+## Variation in effect sizes and true heterogeneity
+
+Reported effects will always vary due to sampling error, even if $\theta_1 = \theta_2 = \ldots = \theta_K$
+
+Heterogeneity: *additional* variability in true effect sizes:
+
+$$\sigma \ \text{ in } \ \theta_i \sim \mathcal{N}(\mu, \sigma^2)$$
+
+- Can we explain it?
+- Sources of heterogeneity: covariates, design, context
+- Substantial heterogeneity poses questions of validity/generalisability (see next slide)
+- In frequentist approaches it is typical to test if $\sigma = 0$
+
+
+## Critiques of meta-analysis
+
+- **Cheating**: researcher degrees of freedom in (1) choice of studies, (2) building models
+- **Selectivity**: Meta-analyses make it easy to ignore or underweight non-RCT evidence
+- **“GIGO”** (garbage in, garbage out) issues:
+    - Statistical power issues also apply to meta-analyses
+    - Meta-analysis of low quality (small) studies can lead to overconfidence
+    - Risk of giving extra credibility to poor research
+- Institutional critiques:
+    - John Ioannidis, 2016: 3% of meta-analyses are “decent and clinically useful” (speculative)
+    - Richard Horton (editor in chief, the Lancet), 2019: “Imagine if the entire edifice of knowledge in medicine was built upon a falsehood.”
+    - Gøtzsche (BMJ EBM), 2019: “The Cochrane HPV vaccine review was incomplete and ignored important evidence of bias” (only 26 out of 46 trials included)
+
+
+# 5 minutes of something practical
+
+## Implementing meta-analyses
+
+1. R is a good tool for meta-analyses. Reasons:
+	- Meta-analyses are not computationally intensive
+	- A lot of data processing, visualisation, need for a specialised ecosystem (do not code your own solutions!)
+	- Big focus on reporting to non-technical audiences
+2. General R packages: `meta`, `metafor` (frequentist), `baggr` (Bayesian)
+3. Each of them has good tutorials (look online or in `vignettes()` in R)
+
+
+## Quick worked example in R (frequentist)
+
+
+```{r, eval = FALSE, echo = TRUE}
+library(metafor)
+
+data(schools, package = "baggr")
+
+# RE meta-analysis model
+res <- rma(yi = tau, sei = se, data = schools, method = "REML")
+
+res # Inspect result
+forest(res, xlab = "SAT improvement") # Forest plot
+funnel(res) # Funnel plot (not very useful with K=8)
+```
+
+
+
+# A bit more formal look
+
+
+## Three canonical models 
+
+**Fixed-Effect Meta-Analysis**: assumes a single true effect size across all studies
+
+**Random-Effects Meta-Analysis**: accounts for both within-study and between-study variability in effect sizes.
+
+**Meta-regression**: adds study-level explanatory variables for effect sizes (e.g. "effect sizes depend linearly on take-up of intervention")
+
+
+## Inference problem
+
+Sampling model: $b_i \sim \mathcal{N}(\theta_i, se_i^2)$
+
+Between-study model: $\theta_i \sim \mathcal{N}(\mu, \sigma^2)$
+
+Let us infer $\mu$ and $\sigma$.
+
+$$
+b_i \mid \mu, \sigma^2 \sim \mathcal{N}(\mu, se_i^2 + \sigma^2)
+$$
+
+Fixed-effect model (inverse variance weights):
+
+$$
+\sigma^2 = 0
+\quad \Rightarrow \quad
+\hat{\mu}
+= \frac{\sum_i b_i / se_i^2}{\sum_i 1 / se_i^2}
+$$
+
+Random-effects model (estimate $(\hat{\sigma}, \hat{\mu})$ jointly!):
+
+$$
+\sigma^2 > 0
+\quad \Rightarrow \quad
+\hat{\mu}
+= \frac{\sum_i b_i / (se_i^2 + \hat{\sigma}^2)}
+{\sum_i 1 / (se_i^2 + \hat{\sigma}^2)}
+$$
+
+
+## Solving the inference problem
+
+Frequentist:
+
+- FE is easy (previous slide)---unless the studies don't behave nicely
+- RE can be closed form (Der Simonian and Laird) or restricted maximum likelihood
+- Many different estimators to choose from, this can matter a lot in edge cases
+
+Bayesian:
+
+- Set priors $p(\mu)$ and $p(\sigma)$
+- Then $p(\mu, \sigma \vert \text{data}) \propto p(\mu)p(\sigma)p(\text{data}\vert\mu,\sigma)$
+- This can matter even more!
+
+
+
+## Back to the example in R: Bayesian
+
+
+```{r, eval = FALSE, echo = TRUE}
+library(baggr)
+
+data(schools, package = "baggr")
+
+# RE meta-analysis model
+bg <- baggr(schools)
+
+bg # Inspect result
+plot(bg) + xlab("SAT improvement") # Forest plot
+funnel(bg) # Funnel plot (not very useful with K=8)
+```
+
+
+
+
+## Exchangeability
+
+Meta-analysis assumes studies are _exchangeable._
+
+- Formally: joint distribution of random variables is invariable to permutations.
+- Or: before seeing the data, we have no principled reason to expect one study’s true effect to be systematically larger or smaller than another
+- Essential assumption of meta-analytic model. Often debatable!
+- Can be conditional on some covariates (next slide)
+
+
+
+## Meta-regression
+
+Explain part of heterogeneity among studies by using regression on study-level covariates.
+
+$$
+\theta_i \mid \mu, \beta, \sigma^2
+\sim \mathcal{N}(\mu + x_i^\top \beta,\; \sigma^2)
+$$
+
+It's a simple technique. Applicable to both FE and RE models. 
+Can even do it with individual-level data.
+
+
+## Individual-level data
+
+Also referred to as "IPD" in medicine. 
+Let j = 1,…,n_i index individuals within study i.
+
+Outcome model:
+$$
+y_{ij} \mid \alpha_i, \theta_i, z_{ij}
+\sim \mathcal{N}(\alpha_i + \theta_i \, t_{ij} + z_{ij}^\top \gamma,\; \sigma_y^2)
+$$
+
+Study-level model for treatment effects:
+$$
+\theta_i \mid \mu, \beta, x_i, \sigma^2
+\sim \mathcal{N}(\mu + x_i^\top \beta,\; \sigma^2)
+$$
+
+Study-level model for intercepts:
+$$
+\alpha_i \sim \mathcal{N}(\alpha_0,\; \sigma_\alpha^2)
+$$
+
+
+## Hierarchial modelling
+
+Meta-analysis is an example of a hierarchical model
+
+- $y_{ij} = \alpha + \beta \theta_i + \epsilon_{ij}, \ \text{ with }\epsilon_{ij} \sim \mathcal{N}(0, \tau^2)$
+- $\theta_i \sim \mathcal{N}(\mu, \sigma^2)$
+- also known as multilevel models, mixed models
+
+You can complicate this:
+
+- many levels: several effects per study, several studies per publication
+- covariates at each level (meta-regression!)
+- corrections for re-using the sample
+- multi-dimensional outcomes
+
+
+
+## Predicting effect in a new implementation
+
+Estimates of $\mu$ and $\sigma$ are historical means
+
+Typically you care about out-of-sample observations: "what will be the effect of intervention in an yet-unobserved study?"
+
+- Uncertainty about $\mu$
+- Heterogeneity $\sigma$
+- Uncertainty about $\sigma$
+
+BLUE/BLUP estimation in frequentist
+More intuitive in Bayesian inference: for posterior vectors of draws from $\mu$ and $\sigma$, `mu_post`, `sigma_post`, do:
+
+```
+rnorm(N, mu_post, sigma_post)
+```
+
+That's it! You can & should do it even for a single study (van Zwet, Gelman, and Więcek 2025)
+
+
+
+## Reporting meta-analysis results
+
+Forest plot: show effect sizes and confidence intervals (CIs) from each study included in a meta-analysis alongside pooled estimate
+
+(revisit our example)
+
+
+
+## Publication bias
+
+- People may choose to not publish non-significant results
+- We can inspect funnel of effect sizes vs standard errors
+    - Small non-significant studies missing? Parts of the funnel empty?
+    - Large proportion of studies outside of funnel?
+    - You can test for asymmetry (or relationship between SE and effects)
+- Funnel shapes diagnose many issues, not publication bias
+- You can estimate relative probability of publication (Hedges' selection model, 1992)
+    - Can even correct the estimate for this probability
+
+<!-- Worth looking at graphs at https://wwiecek.github.io/posts/pub-bias-meta-analysis/ -->
+
+
+
+## Why be Bayesian?
+
+- We know something about plausible effect sizes or heterogeneity---use it as a prior
+    - For example based on non-experimental data
+    - or effect sizes in similar interventions
+- Frequentist meta-analyses can underestimate heterogeneity (often snap to zero)
+- Easier to build complicated models with Bayesian inference
+- Posterior predictive distributions and cost-effectiveness analyses
+
+
+
+## Conclusion to this intro
+
+Terms we introduced: 
+
+- meta-analysis, 
+- effect size, 
+- generalisability, 
+- heterogeneity, 
+- fixed effects, 
+- random effects, 
+- meta-regression, 
+- forest plot
+
+Questions?
+
+
+
+
+# Scrap material
+
+## Another example 
+
+\tiny
+
+```{r, eval = FALSE, echo = TRUE}
+library(meta) 
+# Import data from CSV file 
+data <- read.csv("meta_data.csv") 
+# Compute effect sizes and standard errors 
+effect_size <- log(data$odds_ratio) 
+# Typical way of approximating SE(log(OR)), we will discuss this later
+se <- sqrt(1/data$a + 1/data$b + 1/data$c + 1/data$d) 
+# Create meta-analysis object 
+meta_result <- meta::metagen(effect_size, se, studlab = data$study_name) 
+# Forest plot 
+meta::forest(meta_result, xlim = c(-5, 3), xlab = "Log Odds Ratio", 
+             atransf = exp, cex = 0.8, 
+             print.tau2 = FALSE, 
+             comb.random = TRUE, 
+             comb.fixed = TRUE) 
+# Meta-regression (if applicable) 
+meta::metareg(meta_result, ~covariate1 + covariate2) 
+# Funnel plot (if applicable) 
+meta::funnel(meta_result)
+```
+
+

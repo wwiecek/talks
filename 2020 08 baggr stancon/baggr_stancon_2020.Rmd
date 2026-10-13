@@ -1,0 +1,266 @@
+---
+title: "Bayesian meta-analysis in Stan with _baggr_"
+author: "Witold Wiecek & Rachael Meager"
+date: "13 August 2020"
+output: 
+  beamer_presentation:
+    theme: "Boadilla"
+    colortheme: "dove"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(baggr)
+library(ggplot2) #for themes, xlim etc.
+baggr::baggr_theme_set(theme_classic(base_size = 20))
+baggr::baggr_theme_update(text = element_text(family = "mono"))
+```
+
+
+
+## baggr
+
+_baggr_ (Bayesian aggregator) is a new R package for Bayesian meta-analysis models that uses Stan
+
+Our goals: 
+
+1. Implement all basic meta-analysis models and tools
+2. Focus on accessibility, model criticism and comparison
+3. Help people avoid basic mistakes
+4. Keep the framework flexible and extend to more models
+
+(Probably) _not_ our goal:
+
+5. Build a package for people who already build their models in Stan
+
+_baggr_ beta is available on [CRAN](https://cran.r-project.org/package=baggr) and [GitHub](https://github.com/wwiecek/baggr)
+
+
+
+
+## Basic model of meta-analysis is simple...
+
+After Rubin (1981)\footnote{Rubin, Donald B. "Estimation in Parallel Randomized Experiments". Journal of Educational Statistics 6, no. 4 (1981): 377–401.}
+
+* Assume only aggregate data ($y$, $se$) are known ($y_i \sim \mathcal{N}(\tau_i, se_i)$)
+    + We treat $se_i$ as fixed (works OK with big samples)
+* Hierarchical model: $\tau_i \sim \mathcal{N}(\tau, \sigma)$
+    +  $\sigma = 0$ is "full pooling", $\sigma = \infty$ is "no pooling"
+    + Fixed and random effects in medical stats
+    + Typically it's more sensible to start with $0 < \sigma < \infty$
+    + Note how the amount of heterogeneity across $i$'s will be controlled by $\sigma$ prior
+
+
+## ...but it gets more complicated fast
+
+* Continuous, categorical data
+* Meta-analysis of means (summary data) 
+* Meta-regression
+* Individual-level data (or a mix of summary and individual)
+* Modeling more parameters (mixture data, variances, quantiles)
+* Dealing with small samples (e.g. chemical risk assessment)
+* Model-based meta-analysis (drug development)
+* Network meta-analysis / ITC (health technology assessment)
+
+Techniques, terminology, _motivations_ and even software are very domain-specific
+
+
+
+## Example (8 schools!)
+
+We use a familiar summary-level dataset from Rubin (1981). Individual-level data works just as well.
+
+
+\small
+
+```{r, echo = T}
+library(baggr)
+schools
+```
+
+
+
+## _baggr_  syntax example: simple model workflow
+
+\tiny 
+
+```{r, eval = T, include = F, cache = T}
+# Fitting function is baggr()
+fit <- baggr(schools, model = "rubin", pooling = "partial",
+             prior_hypermean = normal(0, 25), prior_hypersd = uniform(0, 100))
+
+# Automatic prior choice, automatic model choice (with prompts):
+eff_lab <- "mean SAT improvement"
+niter <- 1e04 #to make it a bit smoother in slides
+fit_c <- baggr(schools, prior_hypersd = cauchy(0, 50), effect = eff_lab,
+               iter = niter)
+fit_n <- baggr(schools, prior_hypersd = normal(0, 10), effect = eff_lab,
+               iter = niter)
+fit_u <- baggr(schools, prior_hypersd = uniform(0, 100),
+                        prior_hypermean = normal(-5, 10), effect = eff_lab,
+               iter = niter)
+
+# Plot results for one model, making use of bayesplot
+baggr_theme_update(text = element_text(family = "mono"))
+plot(fit_c, style = "areas", hyper = TRUE, order = TRUE)
+
+# Compare fit to data
+bgc <- baggr_compare("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u)
+bgc; plot(bgc)
+# Compare posterior predictive distribution (note ggplot)
+effect_plot("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u) + xlim(-10, 30)
+
+# Compare the impact of different prior choices
+bgc_pooling <- baggr_compare(schools, prior_hypersd = normal(0, 10), what = "pooling")
+plot(bgc_pooling)
+
+# Use LOO cross-validation to choose between partial & full pooling
+loo_p <- loocv(schools, pooling = "partial")
+loo_f <- loocv(schools, pooling = "full")
+loo_compare(loo_p, loo_f)
+```
+
+```{r, eval = F, include = T}
+# Fitting function is baggr()
+fit <- baggr(schools, model = "rubin", pooling = "partial",
+             prior_hypermean = normal(0, 25), prior_hypersd = uniform(0, 100))
+
+# Semi-automatic prior choice, automatic model choice (with prompts):
+eff_lab <- "mean SAT improvement"
+fit_c <- baggr(schools, prior_hypersd = cauchy(0, 50), effect = eff_lab)
+fit_n <- baggr(schools, prior_hypersd = normal(0, 10), effect = eff_lab)
+fit_u <- baggr(schools, prior_hypersd = uniform(0, 100),
+                        prior_hypermean = normal(-5, 10), effect = eff_lab)
+
+# Plot results for one model, making use of bayesplot
+baggr_theme_update(text = element_text(family = "mono"))
+plot(fit_c, style = "areas", hyper = TRUE, order = TRUE)
+
+# Compare fit to data
+bgc <- baggr_compare("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u)
+bgc; plot(bgc)
+# Compare posterior predictive distribution (note ggplot)
+effect_plot("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u) + xlim(-10, 30)
+
+# Compare the impact of different prior choices
+bgc_pooling <- baggr_compare(schools, prior_hypersd = normal(0, 10), what = "pooling")
+plot(bgc_pooling)
+
+# Use LOO cross-validation to choose between partial & full pooling
+loo_p <- loocv(schools, pooling = "partial")
+loo_f <- loocv(schools, pooling = "full")
+loo_compare(loo_p, loo_f)
+```
+
+-----
+
+\scriptsize
+
+```{r}
+fit_c
+```
+
+-----
+
+\scriptsize
+
+```{r}
+plot(fit_c, style = "areas", hyper = TRUE, order = TRUE)
+```
+
+-----
+
+\scriptsize
+
+```{r, eval = F}
+bgc <- baggr_compare("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u)
+bgc; plot(bgc)
+```
+
+```{r, echo = F, fig.height = 6}
+plot(bgc)[[1]] + ggtitle(eff_lab)
+```
+
+-----
+
+\scriptsize
+
+```{r, fig.height = 6}
+effect_plot("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u) + 
+  coord_cartesian(xlim = c(-10, 30)) + 
+  ggtitle("Posterior predictive", "Treatment effect in a new school")
+```
+
+-----
+
+\scriptsize
+
+```{r, echo = T, eval = F}
+bgc_pooling <- baggr_compare(schools, prior_hypersd = normal(0, 10), 
+                             what = "pooling")
+plot(bgc_pooling)
+```
+
+```{r, echo = F, eval = T, fig.height = 6}
+plot(bgc_pooling)[[1]]
+```
+
+
+-----
+
+\scriptsize
+
+```{r, echo = T, eval = F}
+loo_p <- loocv(schools, pooling = "partial")
+loo_f <- loocv(schools, pooling = "full")
+loo_compare(loo_p, loo_f)
+```
+
+```{r, echo = F}
+loo_compare(loo_p, loo_f)
+```
+
+Additional commands: 
+
+```{r, echo = T, eval = F}
+treatment_effect(fit)
+group_effects(fit)
+effect_draw(fit)
+forest_plot(fit)
+pooling(fit)
+```
+
+
+
+## Going beyond the simple use cases
+
+Already included in the new release (v0.7, July 2020):
+
+* Models with many parameters (quantiles, mixtures, effects on means & variances)
+* Running models on individual-level data
+* Including covariates (meta-regression or individual-level)
+* Working with binary data (rare events, L'Abbe and bubble plots)
+* Extra summaries, transforms and plots of data
+* Tutorial vignettes
+
+
+
+## How to make the tool better? Our 5 questions
+
+How to...
+
+* Improve syntax and/or make it more flexible
+* Reach more users
+* Understand who does and who doesn't need help
+* Give more technical users means of extending their models
+* Connect more to Stan ecosystem (e.g. `bayesplot`)
+
+Each of these areas is where feedback from Stan community is especially valuable
+
+
+
+## Thank you
+
+_baggr_ on GitHub: `github.com/wwiecek/baggr/`
+
+Find a copy of slides on `wwiecek.github.io`

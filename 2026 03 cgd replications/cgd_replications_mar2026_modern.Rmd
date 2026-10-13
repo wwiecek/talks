@@ -1,0 +1,405 @@
+---
+title: "A few thoughts on gold standard science"
+author: "Witold Więcek"
+date: "24 March 2026"
+output:
+  beamer_presentation:
+    theme: "Boadilla"
+    slide_level: 2
+    latex_engine: xelatex
+    includes:
+      in_header: theme_cgd_modern.tex
+classoption: aspectratio=169
+fontsize: 11pt
+---
+
+## 
+
+\sectioncardbody{Gold Standard Science?}{}
+
+## 
+
+\darkimageframebody{White House Executive Order}{assets/cgd-opening.png}{https://www.whitehouse.gov/presidential-actions/2025/05/restoring-gold-standard-science/}
+
+
+## What are people concerned about?
+
+Metascience literature has been warning about low standards in research for decades.
+
+My reading of most-cited papers and online discourse:
+
+- Publication bias is rife
+- p-hacking is rife (anything can be made significant!)
+- "Most published results are false"
+- Significant results do not replicate
+- Some domains are bad, some are more gold standard
+- We should use p-value of 0.01 or 0.001
+- Most studies are "cursed" by low power
+
+...plus concerns about data fraud, paper mills, difficulty in publishing nulls, and more.
+
+**Replications** are seen as a diagnostic for most problems above.
+
+## 
+
+\darkimageframebody{Replication are top priority in the NIH GSS list}{assets/nih-tenets.png}{https://www.nih.gov/sites/default/files/2025-08/2025-gss.pdf}
+
+## What we learned from systematic replications
+
+\small
+
+- Open Science Collab. 2015: 97 psychology studies reporting significant results
+  - **36%** replications statistically significant in the original direction
+  - mean effect size fell 50%
+- Many Labs 2 (Klein et al 2019)
+  - **15/28** statistically significant in the same direction
+  - focused on comparing replications across many different groups
+  - aimed for high power
+  - median effect size fell by 75%
+- Camerer et al 2018: 21 social science papers from Nature and Science
+  - **13/21** statistically significant in the same direction
+  - effect sizes fell by 50%
+  - aimed for high power (5x sample sizes)
+  - also demonstrated that replications can be predicted
+- Reproducibility Project: Cancer Biology
+  - low feasibility: **only 1 in 4 experiments could be ran!** 
+  - 0/193 had sufficient information to re-run the experiment without help from authors
+  - **about half that ran were successes**
+
+
+## Questions I want to ask in this presentation
+
+- Is there a science-wide "replication crisis"?
+- How bad are things currently?
+- In which ares?
+- What is not working? (which concerns are justfied)
+- Of parts that don't work, which can be improved?
+
+I'll try to give a few hints---far from complete picture.
+
+
+## 
+
+\sectioncardbody{"Trust In Science"?}{Evidence from 100,000 studies}
+
+
+## Benchmarks of Empirical Accuracy in Research
+
+\small
+\textbf{Repository (open source!):} \url{https://github.com/wwiecek/BEAR}
+
+- BEAR is a "meta"-database of $z$-values, effect sizes, and standard errors
+  assembled from existing public databases across scientific disciplines.
+- Does not contribute new primary data. All credit due to authors of metascience publications and databases from which BEAR pulls.
+- Includes millions of $z$-values, including about 100,000 studies from curated datasets.
+
+\begin{center}
+\includegraphics[width=0.92\textwidth,height=0.24\textheight,keepaspectratio]{assets/bear_banner.png}
+\end{center}
+
+\lightsource{https://github.com/wwiecek/BEAR}
+
+```{r bear_setup, include=FALSE}
+library(dplyr)
+library(knitr)
+library(scales)
+source("R/plots.R")
+
+opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+slide_data <- load_slide_data()
+dataset_summary <- slide_data$dataset_summary
+results_ranges <- slide_data$results_ranges
+
+fmt2 <- function(x) number(x, accuracy = 0.01)
+fmt0 <- function(x) number(x, accuracy = 1)
+```
+
+
+## We analyse BEAR data in a new statistical modeling paper
+
+"Statistical case for (qualified) scientific optimism", 
+with Erik van Zwet (LUMC) and Andrew Gelman (Columbia Uni)
+
+- Input: a set distribution of empirical estimates from papers
+- Output: estimates of statistical power, replication probabilities, and more
+- Repeat the above for many sets of data
+- This part of the presentation is mainly my own interpretation of our (work in progress) paper!
+
+
+
+
+## Two main statistical concepts: z-value and SNR
+
+\small
+
+For study $i$, true effect $\beta_i$:
+\[
+z_i = \frac{\hat\beta_i}{SE(\hat\beta_i)}, \qquad
+\text{SNR}_i = \frac{\beta_i}{SE(\hat\beta_i)}.
+\]
+
+Assuming an unbiased estimator with approximately normal sampling error,
+\[
+z_i = \text{SNR}_i + \varepsilon_i, \qquad \varepsilon_i \sim N(0,1).
+\]
+
+Relationship of z to p-values:
+$$p = 0.05 \Rightarrow |z| = 1.96, p = 0.01 \Rightarrow |z| = 2.58, p = 0.001 \Rightarrow |z| = 3.29$$
+
+
+
+## Empirical estimates "production function"
+
+\small
+
+(We will illustrate this in a moment.)
+
+1. Researchers pick a hypothesis ("draw effect size")
+2. Study is designed (fix SE; "aim for 80% power")
+3. Therefore SNR is now fixed too
+4. Experiment is conducted, adds sampling variation (z = SNR + N(0,1))
+5. Researchers may p-hack (move some z-values around)
+6. Some non-significant results (p > 0.05, i.e. |z| < 1.96) may go in the file drawer
+
+If we can model distribution of $z$-values, we can model underlying SNR!
+If we know SNR, we can derive properties of studies.
+
+
+## What we estimate
+
+For a study _picked at random_ from a given set:
+
+- **Assurance** (power): probability that $|z| > 1.96$
+- **Replication** probability: significant result in the same direction (under same study design)
+- **Correct sign** probability: sign($z$) = sign($\beta$)
+
+"picked at random" is a useful concept: should you trust an average study?
+can also condition on $|z|$, e.g. "if a study reported $p=0.05$, probability of replication is ..."
+
+
+
+
+## Data Used In The Paper
+
+\small
+
+Paper sample: 11 curated datasets and 80,000 studies across clinical trials,
+health, ecology and evolution, economics, psychology, psychotherapy,
+education, and political science.
+
+```{r results='asis'}
+dataset_table <- dataset_summary %>%
+  transmute(
+    Dataset = short_label,
+    Domain = domain,
+    `N studies` = comma(n_studies),
+    `k` = sprintf("%.1f", mean_k),
+    `% signif.` = sprintf("%.0f%%", pct_signif)
+  )
+
+dataset_table_tex <- kable(
+  dataset_table,
+  format = "latex",
+  booktabs = TRUE,
+  escape = TRUE,
+  align = c("l", "l", "r", "r", "r"),
+  linesep = ""
+)
+
+cat("\\begin{center}\n")
+cat("\\footnotesize\n")
+cat(dataset_table_tex, "\n")
+cat("\\vspace{0.12cm}\n")
+cat("\\begin{minipage}{0.92\\textwidth}\\raggedright\\scriptsize\n")
+cat("\\textbf{Note:} BEAR currently includes 20 datasets and 11.5 million ")
+cat("$z$-values. This slide shows only the 11 curated datasets used in the ")
+cat("paper, with counts and percentages taken from the paper table.\n")
+cat("\\end{minipage}\n")
+cat("\\end{center}\n")
+```
+
+
+
+## 
+
+\plotframebody{Illustrating production function}
+
+\makebox[\textwidth][c]{%
+\includegraphics[width=1.08\textwidth,height=0.82\textheight,keepaspectratio]{production_function/figures/production_function_cochrane_slide.png}%
+}
+
+
+## 
+
+\plotframebody{Cochrane Database of Systematic Reviews}
+
+\includegraphics[width=\linewidth,height=0.69\textheight,keepaspectratio]{fig/cochrane.pdf}
+
+\vspace{0.1cm}
+
+\scriptsize Largest paper dataset, 30,000 studies. Mean assurance = `r fmt2(dataset_summary$assurance[dataset_summary$dataset == "Cochrane"])`. Note a decreasing density of absolute $z$-values with a visible discontinuity at $|z| = 1.96$.
+
+## 
+
+\plotframebody{The other 10 curated datasets}
+
+\includegraphics[width=\linewidth,height=0.76\textheight,keepaspectratio]{fig/other10_panels.pdf}
+
+
+
+## 
+
+\plotframebody{Constrast with replications and scraped PubMed values}
+
+\includegraphics[width=\linewidth,height=0.76\textheight,keepaspectratio]{fig/three_panels.png}
+
+\scriptsize No discontinuity in OSC 2015. Huge gaps in PubMed!
+
+## Main results
+
+Across 11 datasets (and various subsets we tested):
+
+- No large discontinuity at |z| = 1.96 _in curated datasets_
+- Density decreases in |z|
+  - This is crucial: the most common scenario is low power/small effects. 
+  - Even in best domains! (e.g. large Phase 3 blinded clinical trials)
+  - What differs across domains is width of the distribution
+- Expected probability of...
+  - ...replication: 20-50% 
+  - ...getting the sign right: 70-90%
+  - this is for any study (not significant)
+- Small proportion of studies reach 80% statistical power (8-29%)
+
+
+## Small studies are not the main issue
+
+\small
+
+- If you have 5% significance and 80% power, 2x sample size would give you 0.2% significance
+  - "aiming for p < 0.002" reform
+- But you don't know power in your study!
+- Inferred distribution of power in datasets is bimodal. "Good studies" don't need more subjects, "bad studies" don't benefit.
+- Impact of doubling all samples: 
+  - **replication probability goes from 21-47% to 25-57%**
+  - this would still great at decreasing rate of "false positives"
+
+...the issue is that researchers don't have a crystal ball!
+
+
+## 
+
+\plotframebody{Sign And Replication Probability}
+
+\includegraphics[width=\linewidth,height=0.69\textheight,keepaspectratio]{fig/sign_rep.pdf}
+
+\vspace{0.1cm}
+
+\scriptsize Thin lines are the 11 curated datasets; thick lines are the median
+curves. Even at $p = 0.001$ ($|z| = 3.29$) replication probability is 0.75 at most.
+
+
+
+
+## What have we learned?
+
+(my interpretation!)
+
+1. Dichotomisation of results into true and false is a bad model of reality
+2. Even worse if dichotomisation is "significant = true"
+3. Statistical significance is not a good proxy for strong result
+4. Replication rates will likely remain low (significance twice in a row is hard)
+5. ... but studies carry useful infrmation!
+6. Even a random study highly likely to point in the right direction
+7. File drawer problem is less in well-defined research questions
+8. Data scraped from PubMed is not fit for assessing empirical research
+9. Even best domains (e.g. large scale clinical trials) have same crucial features
+
+
+## Possible implications for metascience
+
+\small
+
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.31\textwidth}>{\raggedright\arraybackslash}p{0.31\textwidth}>{\raggedright\arraybackslash}p{0.31\textwidth}}
+
+\textbf{Useful} & \textbf{Not useful} & \textbf{Don't know} \\
+
+Significant results do not replicate \par
+Most studies are ``cursed'' by low power 
+&
+
+``Most published results are false'' \par
+Some domains are bad, some are more gold standard \par
+We should use p-value of 0.01 or 0.001 \par 
+&
+
+Publication bias is rife \ par
+p-hacking is rife \par
+Replications can be great
+
+\end{tabular}
+
+
+## 
+
+\sectioncardbody{You keep using that word...}{A few remarks on replication programs}
+
+
+## Flavours of replication
+
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.58\textwidth}
+\small
+
+\begin{itemize}
+\item "Replication" is not well defined. Three simple distinctions.
+\item \textbf{Analytic:} Repeat the analysis using original code and data, e.g. economics.
+\item \textbf{Recipe:} Do the experiment, but follow the original protocol as closely as possible, e.g. cancer biology.
+\item \textbf{Conceptual:} Test the same claim with updated materials or a new context, e.g. psychology replications.
+\item Clemens (2015) counted 41 definitions in social science, most of them about robustness.
+\end{itemize}
+\end{column}
+\begin{column}{0.36\textwidth}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{assets/three_reps_vertical.png}
+\end{center}
+\end{column}
+\end{columns}
+
+## Flavours of replication, cont'd
+
+\small
+
+- Different questions call for different checks
+  - Analytic replication checks for basic errors
+  - Recipe replication clarifies tacit knowledge/assumptions
+  - Conceptual replication help understand external validity
+- The boundaries are not clean.
+  - Re-running the code but switching to a new implementation of the same method
+  - Re-running the same program in the same place, but five years later
+- Differences pretty obvious to practicioners & usually easy to choose...
+- ...but "failure to replicate" conveys little information
+
+## What counts as failure?
+
+\small
+
+- Failure is sometimes close to binary.
+  - If the code does not run, the data cannot be produced, or an image is manipulated, confidence should fall sharply.
+- Most empirical disputes are less clean.
+  - An original estimate of `d = 0.30, p = 0.001` and a replication estimate of `d = 0.15, p = 0.10` can imply partial corroboration, a smaller effect, or "failure", depending on the rule.
+- Significance alone is too crude a standard.
+  - Success could mean the same sign, similar magnitude, overlapping uncertainty, or persuasive pooled evidence.
+- The useful agenda is broader than "more replications".
+  - The goal is to increase confidence in findings that are real and useful, and to discard fragile claims more quickly.
+
+## "Non-replication" without replication
+
+\small
+
+- Not considered replication:
+  - Design critique
+  - Robustness critique or reanalysis
+  - Data provenance / forensic checks
+  - Meta-analysis / evidence synthesis
+- Important reversals come from post-publication scrutiny

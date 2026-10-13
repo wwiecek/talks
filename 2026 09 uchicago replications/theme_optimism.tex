@@ -1,0 +1,44 @@
+% Restrained 16:9 seminar style, with a single blue accent.
+\usepackage{booktabs}
+\definecolor{accent}{HTML}{174C70}
+\definecolor{bodytext}{HTML}{25282B}
+\definecolor{muted}{HTML}{666D73}
+\setbeamercolor{normal text}{fg=bodytext,bg=white}
+\setbeamercolor{structure}{fg=accent}
+\setbeamercolor{frametitle}{fg=accent}
+\setbeamercolor{title}{fg=accent}
+\setbeamerfont{title}{size=\LARGE,series=\bfseries}
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries}
+\setbeamerfont{author}{size=\normalsize}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}[circle]
+\setbeamersize{text margin left=8mm,text margin right=8mm}
+\setbeamertemplate{frametitle}{\vspace{3mm}\insertframetitle\par\vspace{2mm}}
+\setbeamercolor{author in head/foot}{fg=white,bg=accent}
+\setbeamercolor{title in head/foot}{fg=white,bg=accent!85}
+\setbeamercolor{page number in head/foot}{fg=accent,bg=accent!12}
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox{%
+  \begin{beamercolorbox}[wd=.21\paperwidth,ht=2.6mm,dp=1.1mm,center]{author in head/foot}%
+    \fontsize{6.5}{7}\selectfont Witold Więcek
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.71\paperwidth,ht=2.6mm,dp=1.1mm,center]{title in head/foot}%
+    \fontsize{6.5}{7}\selectfont\inserttitle
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.08\paperwidth,ht=2.6mm,dp=1.1mm,center]{page number in head/foot}%
+    \fontsize{6.5}{7}\selectfont\insertframenumber/\inserttotalframenumber
+  \end{beamercolorbox}%
+  }%
+}
+\setbeamertemplate{title page}{
+  \vspace{10mm}
+  {\usebeamerfont{title}\usebeamercolor[fg]{title}\inserttitle\par}
+  \vspace{9mm}
+  {\usebeamerfont{author}\insertauthor\par}
+  \vspace{3mm}
+  {\small based on the paper with Erik van Zwet and Andrew Gelman\par}
+  \vspace{5mm}
+  {\small\insertdate\par}
+}
+\newcommand{\slidesource}[1]{{\fontsize{7}{8.5}\selectfont\color{muted}#1\par}}
+\hypersetup{colorlinks=true,urlcolor=accent}

@@ -1,0 +1,107 @@
+\usepackage{fontspec}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{microtype}
+\usepackage{etoolbox}
+\usepackage{tikz}
+
+\setsansfont{DejaVu Sans}
+\setmainfont{DejaVu Serif}
+\setmonofont{DejaVu Sans Mono}
+
+\definecolor{cgdblue}{HTML}{005088}
+\definecolor{cgdsand}{HTML}{F3F0DF}
+\definecolor{cgdink}{HTML}{163447}
+\definecolor{cgdmuted}{HTML}{5F7280}
+
+\setbeameroption{hide notes}
+\setbeamertemplate{navigation symbols}{}
+\setbeamersize{text margin left=8mm, text margin right=8mm}
+\usefonttheme{professionalfonts}
+
+\newcommand{\cgdlightframe}{%
+  \setbeamercolor{background canvas}{bg=cgdsand}%
+  \setbeamercolor{normal text}{fg=cgdink,bg=cgdsand}%
+  \setbeamercolor{structure}{fg=cgdblue}%
+  \setbeamercolor{frametitle}{fg=cgdblue,bg=cgdsand}%
+  \hypersetup{urlcolor=cgdblue}%
+}
+
+\AtBeginDocument{\cgdlightframe}
+
+\setbeamercolor{title}{fg=cgdblue}
+\setbeamercolor{itemize item}{fg=cgdblue}
+\setbeamercolor{itemize subitem}{fg=cgdblue}
+\setbeamerfont{title}{family=\rmfamily,series=\bfseries,size=\LARGE}
+\setbeamerfont{frametitle}{family=\rmfamily,series=\bfseries,size=\Large}
+\setbeamerfont{section title}{family=\rmfamily,series=\bfseries,size=\Huge}
+\setbeamerfont{source line}{size=\tiny}
+\setbeamerfont{normal text}{size=\small}
+\setbeamerfont{itemize/enumerate body}{size=\small}
+
+\makeatletter
+\setbeamertemplate{frametitle}{%
+  \ifx\insertframetitle\@empty
+  \else
+    \vspace{0.14cm}%
+    \begin{beamercolorbox}[wd=\paperwidth,leftskip=8mm,rightskip=8mm]{frametitle}%
+      {\usebeamerfont{frametitle}\color{cgdblue}\insertframetitle\par}%
+    \end{beamercolorbox}%
+    \vspace{0.02cm}%
+  \fi
+}
+\makeatother
+
+\newcommand{\lightsource}[1]{%
+  \vfill
+  {\raggedleft\usebeamerfont{source line}\color{cgdmuted}Source: \url{#1}\par}
+}
+
+\newcommand{\sectioncardbody}[2]{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \fill[cgdblue] (current page.south west) rectangle (current page.north east);
+  \end{tikzpicture}
+  \vspace*{0.08\textheight}
+  \begin{center}
+    {\usebeamerfont{section title}\color{cgdsand}#1\par}
+    \ifstrempty{#2}{}{%
+      \vspace{0.28cm}
+      {\Large\color{cgdsand!90}#2\par}
+    }%
+  \end{center}
+}
+
+\newcommand{\darkimageframebody}[3]{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \fill[cgdblue] (current page.south west) rectangle (current page.north east);
+  \end{tikzpicture}
+  {\usebeamerfont{frametitle}\color{cgdsand}#1\par}
+  \vspace{0.12cm}
+  \begin{center}
+    \includegraphics[
+      width=0.93\textwidth,
+      height=0.74\textheight,
+      keepaspectratio
+    ]{#2}
+  \end{center}
+  \vfill
+  {\raggedleft\usebeamerfont{source line}\color{cgdsand!82}%
+    Source: \url{#3}\par}
+}
+
+\newcommand{\darktextframebody}[1]{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \fill[black] (current page.south west) rectangle (current page.north east);
+  \end{tikzpicture}
+  {\usebeamerfont{frametitle}\color{white}#1\par}
+  \vspace{0.06cm}
+  \color{white}
+}
+
+\newcommand{\plotframebody}[1]{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \fill[white] (current page.south west) rectangle (current page.north east);
+  \end{tikzpicture}
+  {\usebeamerfont{frametitle}\color{cgdblue}#1\par}
+  \vspace{0.06cm}
+}

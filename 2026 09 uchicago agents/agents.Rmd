@@ -1,0 +1,93 @@
+---
+title: "Working with AI Agents"
+author: "Witold Więcek"
+date: "University of Chicago · September 2026"
+output:
+  beamer_presentation:
+    slide_level: 2
+    latex_engine: xelatex
+    keep_tex: true
+    includes:
+      in_header: theme_agents.tex
+classoption: aspectratio=169
+fontsize: 11pt
+mainfont: "Lato"
+sansfont: "Lato"
+monofont: "DejaVu Sans Mono"
+---
+
+## AIs are changing rapidly, but the default approach is similar
+
+1. **Just fool around with it:** you don't need a tutorial.
+2. **Everything is meta:** if you don't know how to use it, ask it.
+3. **Aim for persistence:** leave behind instructions and project memory.
+4. **Teach it to work more like you.**
+5. **Plan, iterate, and show it examples of your work.**
+
+**Six months later:** I would tweak some of the above slightly, but they are all still valid.
+
+## Your AI use is a signal for other people
+
+**If you send me unfinished AI work, I learn something about you.**
+
+- Be a useful middleman: if someone needs generic AI output, they can produce it themselves.
+- **What is the researcher's added value?**
+- The standard of our work has to go up (brutal but true).
+- Be transparent about your contributions and AI's contributions.
+
+## When is it okay to let AI write code?
+
+### Discuss!
+
+- When you have **100% verification**?
+- When you **understand the method**?
+- When you **don't care about implementation**?
+
+
+## Basic workflow with agents
+
+**Terminal → project directory → agent → code / `.md` files / shell**
+
+- Integration across tools is getting better.
+- Learn to connect sources of context *(I like Obsidian for this)*.
+- Large premium to experimenting — and experimentation is easy.
+- For simple work, the limiting factor is often your ability to supervise.
+
+**My mess:** cloud and terminal agents still do not feel connected
+
+## Short demo with BEAR
+
+## What should humans focus on?
+
+**The more context AI gets, the less valuable humans are as conduits for information.**
+
+**Human value increasingly lies in taste, judgement and supervision.**
+
+- **Taste:** What is actually interesting? What is high value?
+- **Judgement:** Which objections matter? Which method is appropriate?
+- **Supervision:** What should we do next? Did what we just did make sense?
+
+## Make it behave more like you — transparently
+
+- **Short iteration loops:** agent works → I review → feedback → next task.
+- Keep loops short enough that you understand what happened.
+- Detailed feedback is cheap: **dictation and stream-of-consciousness instructions work well**.
+- **Where do instructions live?**
+  - Global config
+  - Repo-specific instructions (`AGENTS.md`)
+  - Skills
+
+## What am I doing while the agent works?
+
+**We used to do thinking by typing. Now we just need to do thinking.**
+
+- What is worth doing next?
+- Are we still answering the scientific question?
+- What should go in the paper?
+- Is this result plausible or interesting?
+- Which rabbit holes are worth pursuing?
+
+
+## Thanks
+
+witold.wiecek@gmail.com

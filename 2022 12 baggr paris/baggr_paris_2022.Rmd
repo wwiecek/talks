@@ -1,0 +1,231 @@
+---
+title: "Bayesian meta-analysis in Stan with _baggr_"
+date: "1 December 2022"
+output: 
+  beamer_presentation:
+    theme: "Boadilla"
+    colortheme: "dove"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(baggr)
+library(ggplot2) #for themes, xlim etc.
+baggr::baggr_theme_set(theme_classic(base_size = 20))
+baggr::baggr_theme_update(text = element_text(family = "mono"))
+```
+
+
+
+## baggr
+
+_baggr_ (Bayesian aggregator): Bayesian meta-analysis in R with Stan
+
+Overall goals: 
+
+1. Implement all basic meta-analysis models and tools
+2. Focus on accessibility, model criticism and comparison
+3. Help people avoid basic mistakes
+4. Keep the framework flexible and extend to more models
+
+(Probably) _not_ our goal:
+
+5. Build a package for people who already build their models in Stan
+
+_baggr_ v0.7 beta is on [CRAN](https://cran.r-project.org/package=baggr) and [GitHub](https://github.com/wwiecek/baggr)
+
+
+## Features
+
+* Continuous and categorical data
+* "Hand-holding" approach (don't assume users know what they're doing)
+* Meta-analytic workflow (data preparation, p.p. checking, LOO CV)
+* Allows summary and individual-level data
+* Meta-regression
+* Plain language prior definitions (like `rstanarm`)
+
+## Development
+
+Next (?):
+
+Driven largely by suggestions from users.
+
+* Port to command-line Stan
+* More flexible (formula-driven?) definition of REs
+* Modeling more parameters (mixtures, variances, quantiles)
+* Working with counts and (parameteric/Cox) survival
+    + Survival models already programmed by RAs at UChicago
+* BYO? (part of the wider workflow effortit )
+
+Some health-specific applications for m-a:
+
+* Dealing with small samples (e.g. chemical risk assessment)
+* "Model-based" meta-analysis (PK/PD modeling drug development)
+* Network meta-analysis / ITC (health technology assessment)
+
+
+
+## Example (8 schools!)
+
+We use a familiar summary-level dataset from Rubin (1981). Individual-level data works just as well.
+
+
+\small
+
+```{r, echo = T}
+library(baggr)
+schools
+```
+
+
+
+## _baggr_  syntax example: simple model workflow
+
+\tiny 
+
+```{r, eval = T, include = F, cache = T}
+# Fitting function is baggr()
+fit <- baggr(schools, model = "rubin", pooling = "partial",
+             prior_hypermean = normal(0, 25), prior_hypersd = uniform(0, 100))
+
+# Automatic prior choice, automatic model choice (with prompts):
+eff_lab <- "mean SAT improvement"
+niter <- 1e04 #to make it a bit smoother in slides
+fit_c <- baggr(schools, prior_hypersd = cauchy(0, 50), effect = eff_lab,
+               iter = niter)
+fit_n <- baggr(schools, prior_hypersd = normal(0, 10), effect = eff_lab,
+               iter = niter)
+fit_u <- baggr(schools, prior_hypersd = uniform(0, 100),
+                        prior_hypermean = normal(-5, 10), effect = eff_lab,
+               iter = niter)
+
+# Plot results for one model, making use of bayesplot
+baggr_theme_update(text = element_text(family = "mono"))
+plot(fit_c, style = "areas", hyper = TRUE, order = TRUE)
+
+# Compare fit to data
+bgc <- baggr_compare("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u)
+bgc; plot(bgc)
+# Compare posterior predictive distribution (note ggplot)
+effect_plot("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u) + xlim(-10, 30)
+
+# Compare the impact of different prior choices
+bgc_pooling <- baggr_compare(schools, prior_hypersd = normal(0, 10), what = "pooling")
+plot(bgc_pooling)
+
+# Use LOO cross-validation to choose between partial & full pooling
+loo_p <- loocv(schools, pooling = "partial")
+loo_f <- loocv(schools, pooling = "full")
+loo_compare(loo_p, loo_f)
+```
+
+```{r, eval = F, include = T}
+# Fitting function is baggr()
+fit <- baggr(schools, model = "rubin", pooling = "partial",
+             prior_hypermean = normal(0, 25), prior_hypersd = uniform(0, 100))
+
+# Semi-automatic prior choice, automatic model choice (with prompts):
+eff_lab <- "mean SAT improvement"
+fit_c <- baggr(schools, prior_hypersd = cauchy(0, 50), effect = eff_lab)
+fit_n <- baggr(schools, prior_hypersd = normal(0, 10), effect = eff_lab)
+fit_u <- baggr(schools, prior_hypersd = uniform(0, 100),
+                        prior_hypermean = normal(-5, 10), effect = eff_lab)
+
+# Plot results for one model, making use of bayesplot
+baggr_theme_update(text = element_text(family = "mono"))
+plot(fit_c, style = "areas", hyper = TRUE, order = TRUE)
+
+# Compare fit to data
+bgc <- baggr_compare("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u)
+bgc; plot(bgc)
+# Compare posterior predictive distribution (note ggplot)
+effect_plot("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u) + xlim(-10, 30)
+
+# Compare the impact of different prior choices
+bgc_pooling <- baggr_compare(schools, prior_hypersd = normal(0, 10), what = "pooling")
+plot(bgc_pooling)
+
+# Use LOO cross-validation to choose between partial & full pooling
+loo_p <- loocv(schools, pooling = "partial")
+loo_f <- loocv(schools, pooling = "full")
+loo_compare(loo_p, loo_f)
+```
+
+-----
+
+\scriptsize
+
+```{r}
+fit_c
+```
+
+-----
+
+\scriptsize
+
+```{r}
+plot(fit_c, style = "areas", hyper = TRUE, order = TRUE)
+```
+
+-----
+
+\scriptsize
+
+```{r, eval = F}
+bgc <- baggr_compare("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u)
+bgc; plot(bgc)
+```
+
+```{r, echo = F, fig.height = 6}
+plot(bgc) + ggtitle(eff_lab)
+```
+
+-----
+
+\scriptsize
+
+```{r, fig.height = 6}
+effect_plot("Cauchy" = fit_c, "Normal" = fit_n, "Uniform" = fit_u) + 
+  coord_cartesian(xlim = c(-10, 30)) + 
+  ggtitle("Posterior predictive", "Treatment effect in a new school")
+```
+
+-----
+
+\scriptsize
+
+```{r, echo = T, eval = F}
+bgc_pooling <- baggr_compare(schools, prior_hypersd = normal(0, 10), 
+                             what = "pooling")
+plot(bgc_pooling)
+```
+
+```{r, echo = F, eval = T, fig.height = 6}
+plot(bgc_pooling)
+```
+
+
+-----
+
+\scriptsize
+
+```{r, echo = T, eval = F}
+loo_p <- loocv(schools, pooling = "partial")
+loo_f <- loocv(schools, pooling = "full")
+loo_compare(loo_p, loo_f)
+```
+
+```{r, echo = F}
+loo_compare(loo_p, loo_f)
+```
+
+Additional commands: 
+
+```{r, echo = T, eval = F}
+treatment_effect(fit)
+group_effects(fit)
+effect_draw(fit)
+forest_plot(fit)
+pooling(fit)
+```
+

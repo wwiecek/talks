@@ -1,0 +1,176 @@
+---
+title: "A mini course in network meta-analysis"
+date: "June 2023"
+author: "Witold Więcek"
+linkcolor: blue
+output: 
+  beamer_presentation:
+    theme: "Boadilla"
+    colortheme: "dove"
+header-includes:
+  - \setbeameroption{hide notes}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(baggr)
+library(ggplot2) #for themes, xlim etc.
+baggr::baggr_theme_set(theme_classic(base_size = 20))
+baggr::baggr_theme_update(text = element_text(family = "mono"))
+```
+
+
+## Session contents
+
+- Recap information on meta-analysis
+- Theory of NMA
+- Minimal example of NMA
+- More complicated models of (N)MA
+- Discussion of use cases of NMA
+
+
+
+## Basic terminology (recap)
+
+- effect size, 
+- generalisability, 
+- heterogeneity, 
+- fixed effects, 
+- random effects, 
+- meta-regression, 
+- forest plot
+
+_recap: previous slides + hierarchical model interpretation of MA + meta-analytic weights_
+
+- pooling factor
+
+
+## What if we want to compare many treatments?
+
+Our motivating example: Cipriani _et al._, _Comparative efficacy and acceptability of antimanic drugs in acute mania: a multiple-treatments meta-analysis_ (2011), the Lancet
+
+- Influential paper (600+ citations)
+- Meta-analysis experts
+- Realistic scope
+- Highlights typical outputs
+- ...but also challenges
+
+## Network meta-analysis 
+
+- Loosely: any meta-analysis with more than two comparators
+- Direct comparisons, many treatments (studies with 2+ arms)
+- Indirect comparisons: "traversing the graph"
+- Also known as ITC, MTC
+
+- MA: pairwise or direct
+- NMA: Multi-arm studies, pairwise studies with more than 2 treatments
+
+## Acceptability of NMA
+
+- "New kid on the block": much younger than MA
+- See e.g. ["Is network meta-analysis as valid as standard pairwise meta-analysis?" (2013)](https://bmcmedicine.biomedcentral.com/articles/10.1186/1741-7015-11-159)
+- Most widely developed/promoted in health technology assessment, e.g. NICE DSU
+
+## Simple case: A, B, C
+
+Let's draw a simple example.
+
+
+## Additional assumptions
+
+- Joint randomisability ("you'd put them in the same study")
+- Transitivity (same populations/effect modifiers)
+- Consistency ("take any path in the graph")
+
+Transitivity is hard to test for. Consistency a bit easier, but low power.
+
+If not assuming FE: 
+
+- Heterogeneity (same or different across each pairwise comparison?)
+- Within trial correlations
+
+## NMA outputs
+
+Revisit Cipriani et al. paper
+
+- Pairwise comparison matrix
+- Forest plots
+- Rankograms
+
+## Implementation
+
+- MA has simple Bayesian and frequentist implementations
+- Situation a bit more complicated than in the case of MA.
+- Frequentist in R: `netmeta` (good, mature software)
+- But many regulators (rightly) prefer Bayesian methods
+- Bayesian in R: `gemtc` (mature, but slightly less user-friendly)
+
+Some situations require bespoke models.
+
+
+## More complicated situations
+
+- Reminder: (in multi-arm studies) we typically meta-analyse SMD, OR, RR, HR
+- But you can write _any_ parameteric model in Bayesian inference
+- ...and analyse it hierarchically
+- Consider a model of survival or a PKPD model
+- ...just need data to infer these parameters
+- Individual level data often inferred from summary-level data
+- Blurry line between meta-analysis and hierarchical modeling
+
+In pharma world this is referred by some as [model-based meta-analysis](https://www.certara.com/services/model-based-meta-analysis/)
+
+
+## Examples of survival analyses
+
+- Example 1: nivolumab vs cabozantinib
+- Example 2: cabozantinib vs SoC
+
+-----
+
+Worked example in WinBUGS ([link](https://github.com/certara/survivalnma/blob/master/inst/bugs_models/bugs_model_exponential.txt)): 
+
+\tiny
+
+
+```
+Model{
+	for (i in 1:N){ # N=number of data points in dataset
+		#likelihood
+		r[i]~ dbin(p[i],n[i])
+		p[i]<-1-exp(-h[i]*dt[i])
+
+		log(h[i])<-nu[i] + log(time[i])*theta[i]
+		nu[i]<-mu[s[i]]+delta[s[i]]*(1-equals(t[i],b[i]))
+		theta[i]<-0
+		}
+
+	for(k in 1 :NS){ # NS=number of studies in dataset
+		delta[k] <- md[k]
+		md[k]<-d[ts[k]]-d[bs[k]]
+	}
+
+	# priors
+		d[1]<-0
+	for(j in 2 :NT){ # NT=number of treatments
+		d[j] ~ dnorm(mean[1],prec2[1,1])
+	}
+	for(k in 1 :NS){
+		mu[k] ~ dnorm(mean[1],prec2[1,1])
+	}
+}
+```
+
+
+
+## A few resources that recap NMA for you
+
+- Nice online book by Matthais Harrier:
+    - Intro to [frequentist NMA](https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/netwma.html)
+    - Intro to [Bayesian NMA (gemtc)](https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/bayesian-ma.html)
+- Big textbook: [Dias et al. (2018)](https://www.wiley.com/en-es/Network+Meta+Analysis+for+Decision+Making-p-9781118647509)
+- [Cipriani et al. (2011)](https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(11)60873-8/fulltext)
+- [NICE DSU technical support document on Bayesian NMA](https://www.ncbi.nlm.nih.gov/books/NBK310366/pdf/Bookshelf_NBK310366.pdf): directly relevant to the regulator, oldie but goodie
+    - Also see subsequent documents (vol 3-4; this is vol. 2)
+- [NMA of parametric survival curves (Ouwens paper)](https://pubmed.ncbi.nlm.nih.gov/26061470/)
+    - [survivalnma](https://github.com/certara/survivalnma) package

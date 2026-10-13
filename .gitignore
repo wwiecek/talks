@@ -1,0 +1,55 @@
+# Local editor, R session and tool state
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+Thumbs.db
+/.agents/
+/.aws/
+/.codex/
+
+# Generated R Markdown and LaTeX intermediates
+*_cache/
+*_files/
+*.knit.md
+*.utf8.md
+*.aux
+*.log
+*.out
+*.toc
+*.nav
+*.snm
+*.vrb
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.tex
+!theme*.tex
+Rplots.pdf
+
+# Compiled models and saved workshop fits
+*.rdb
+*.rdx
+*.o
+*.so
+*.dll
+/2026 02 fca meta analysis workshop/stan/*.rds
+/2026 02 fca meta analysis workshop/results/
+
+# Local archives and duplicate reference decks
+/2026 03 cgd replications/legacy/
+/2026 09 uchicago replications/cgd_replications_mar2026_modern.*
+
+# Chicago figures and summaries are regenerated from the sibling BEAR checkout
+/2026 09 uchicago replications/figures/
+/2026 09 uchicago replications/corpus_summary.csv
+/2026 09 uchicago replications/example_rows.csv
+
+# Unused figure exports and obsolete HTML redirects
+/2026 03 cgd replications/fig/cochrane.png
+/2026 03 cgd replications/fig/other10_panels.png
+/2026 03 cgd replications/fig/sign_rep.png
+/2026 03 cgd replications/production_function/*.html
+/2026 03 cgd replications/production_function/figures/*
+!/2026 03 cgd replications/production_function/figures/production_function_cochrane_slide.png
